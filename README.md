@@ -12,11 +12,17 @@ We propose **TractoEmbed**, a modular multi-level embedding framework that encod
 
 ## Usage
 
-## Learning
+## Model
 
-### Pretraining
+### Patch Encoder Pretraining
+
+### Streamline Encoder Pretraining
 
 ### Training 
+
+#### Cluster Encoder Training 
+
+### MECL
 
 ### Testing 
 
