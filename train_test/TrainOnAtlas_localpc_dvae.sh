@@ -4,7 +4,7 @@ method="pointnet_only_wucd_focal"
 # Training params
 model_name="pointnet"            # model
 epoch=30                       # epoch
-batch_size=1024        # batch size
+batch_size=128        # batch size
 lr=1e-3     
 dvae="gold"                   # learning rate
 # Data
@@ -54,7 +54,9 @@ CUDA_VISIBLE_DEVICES=0 python train_localpc.py --include_org_data \
                 --sample_pts ${sample_pts}\
                 --dVAE ${dvae}\
                 --use_pointnet \
+                --use_dvae \
+                --use_cnn \
                 --loss ${loss}\
                 --scheduler ${schedular}
-python test.py --out_path_base ${out_path} \
-               --aug_times ${test_aug_times} \
+# python test.py --out_path_base ${out_path} \
+#                --aug_times ${test_aug_times} \

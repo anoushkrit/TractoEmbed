@@ -2,6 +2,8 @@ import argparse
 import os
 import sys
 sys.path.append('../')
+sys.path.append('../models')
+sys.path.append('../models/dVAE')
 import time
 import h5py
 import numpy as np
@@ -13,8 +15,8 @@ import torch.utils.data
 import torch.nn.functional as F
 
 from datasets.dataset_localpc import unrelatedHCP_PatchData
-from models.pointnet_localpc_dvae import PointNetCls
-from models.dgcnn import tract_DGCNN_cls
+from models.multi_embed_concat import MultiEmbed
+# from models.dgcnn import tract_DGCNN_cls
 from utils.logger import create_logger
 from utils.metrics_plots import classify_report, process_curves, calculate_acc_prec_recall_f1, best_swap, save_best_weights
 from utils.funcs import round_decimal, unify_path, makepath, fix_seed, obtain_TractClusterMapping, cluster2tract_label, save_info_feat, str2num
@@ -128,10 +130,10 @@ def load_batch_data():
 
 def load_model(args, num_classes, device, test=False):
     # model setting 
-    if args.model_name == 'dgcnn':
-        DL_model = tract_DGCNN_cls(num_classes,args,device)
-    elif args.model_name == 'pointnet':
-        DL_model = PointNetCls(args,k=args.k, k_global=args.k_global, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
+    # if args.model_name == 'dgcnn':
+    #     DL_model = tract_DGCNN_cls(num_classes,args,device)
+    if args.model_name == 'pointnet':
+        DL_model = MultiEmbed(args,k=args.k, k_global=args.k_global, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
     else:
         raise ValueError('Please input valid model name dgcnn | pointnet')
         
