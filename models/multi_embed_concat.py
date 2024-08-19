@@ -1,3 +1,10 @@
+"""
+Created by
+
+@Author : 
+@Contact : 
+"""
+
 from __future__ import print_function
 import yaml
 import torch
@@ -124,9 +131,7 @@ class MultiEmbed(nn.Module):
 
     def forward(self, x, info_point_set,ras_feat):
         """x (num_fiber, 3, num_points)"""
-        # print("shape of x",x.shape)   
-        # print("shape of info_point_set",info_point_set.shape)
-        # print("shape of ras_feat",ras_feat.shape)
+
         if(self.args.use_dvae):
             # y=torch.cat((x,info_point_set),dim=2)
             y=info_point_set

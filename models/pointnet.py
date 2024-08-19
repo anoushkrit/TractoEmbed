@@ -2,8 +2,8 @@
 Borrow from https://github.com/fxia22/pointnet.pytorch
 
 Modified by 
-@Author: Tengfei Xue
-@Contact: txue4133@uni.sydney.edu.au
+@Author: 
+@Contact: 
 """
 from __future__ import print_function
 import torch
