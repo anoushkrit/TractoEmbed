@@ -122,10 +122,10 @@ def load_batch_data():
     logger.info('The number of classes is:{}'.format(num_classes))
 
     # global feature
-    train_global_feat = train_dataset.global_feat
-    val_global_feat = val_dataset.global_feat
+    # train_global_feat = train_dataset.global_feat
+    # val_global_feat = val_dataset.global_feat
     
-    return train_loader, val_loader, label_names, num_classes, train_data_size, val_data_size, eval_state, train_global_feat, val_global_feat
+    return train_loader, val_loader, label_names, num_classes, train_data_size, val_data_size, eval_state
 
 
 def load_model(args, num_classes, device, test=False):
@@ -489,7 +489,7 @@ if __name__ == '__main__':
     # args.save_args_only = True
     if not args.save_args_only:
         # load data
-        train_loader, val_loader, label_names, num_classes, train_data_size, val_data_size, eval_state, train_global_feat, val_global_feat \
+        train_loader, val_loader, label_names, num_classes, train_data_size, val_data_size, eval_state \
             = load_batch_data()
         # model setting
         DL_model = load_model(args, num_classes, device)
