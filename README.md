@@ -11,6 +11,31 @@ We propose **TractoEmbed**, a modular multi-level embedding framework that encod
 
 
 ## Usage
+### Requirements
+
+- PyTorch >= 1.7.0
+- python == 3.7
+- CUDA >= 10.2
+
+```
+pip install -r requirements.txt
+```
+
+#### Building Pytorch Extensions for Chamfer Distance, PointNet++ and kNN (For training dVAE)
+
+*NOTE:* PyTorch >= 1.7 and GCC >= 4.9 are required.
+
+```
+# Chamfer Distance
+bash install.sh
+# PointNet++
+pip install "git+git://github.com/erikwijmans/Pointnet2_PyTorch.git#egg=pointnet2_ops&subdirectory=pointnet2_ops_lib"
+# GPU kNN
+pip install --upgrade https://github.com/unlimblue/KNN_CUDA/releases/download/0.2/KNN_CUDA-0.2-py3-none-any.whl
+```
+
+## Dataset
+We have used the processed data used by Tractcloud. You can directly download our processed data at https://github.com/SlicerDMRI/TractCloud/releases (1 million streamlines, 800 clusters & 800 outliers). This is the streamline dataset.
 
 ## Model
 
@@ -18,7 +43,9 @@ We propose **TractoEmbed**, a modular multi-level embedding framework that encod
 
 ### Streamline Encoder Pretraining
 
+
 ### Training 
+
 
 #### Cluster Encoder Training 
 

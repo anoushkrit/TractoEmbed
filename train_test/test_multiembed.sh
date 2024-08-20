@@ -31,32 +31,5 @@ out_path=../ModelWeights/${method}Sample_pts${sample_pts}Data${input_data}_Rot${
 input_path=../${input_data}
 export CUDA_VISIBLE_DEVICES=0
 
-CUDA_VISIBLE_DEVICES=0 python train_localpc.py --include_org_data \
-                --recenter \
-                --k_ds_rate ${k_ds_rate} \
-                --rot_ang_lst ${rot_ang_lst} \
-                --scale_ratio_range ${scale_ratio_range} \
-                --trans_dis ${trans_dis} \
-                --aug_times ${aug_times} \
-                --k ${k} \
-                --k_point_level ${k_point_level} \
-                --k_global ${k_global} \
-                --num_fiber_per_brain ${num_f_brain} \
-                --num_point_per_fiber ${num_p_fiber} \
-                --input_path ${input_path} \
-                --epoch ${epoch} \
-                --out_path_base ${out_path} \
-                --model_name $model_name \
-                --train_batch_size $batch_size \
-                --val_batch_size $batch_size \
-                --test_batch_size $batch_size  \
-                --lr ${lr} \
-                --sample_pts ${sample_pts}\
-                --dVAE ${dvae}\
-                --use_pointnet \
-                --use_dvae \
-                --use_cnn \
-                --loss ${loss}\
-                --scheduler ${schedular}
-python test.py --out_path_base ${out_path} \
+CUDA_VISIBLE_DEVICES=0 python test.py --out_path_base ${out_path} \
                --aug_times ${test_aug_times} \

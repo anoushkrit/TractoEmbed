@@ -8,8 +8,8 @@ import os
 import whitematteranalysis as wma
 from pytorch3d.transforms import RotateAxisAngle, Scale, Translate
 from scipy.interpolate import CubicSpline
-# from dipy.segment.fss import FastStreamlineSearch, nearest_from_matrix_row
-# from nibabel.streamlines.array_sequence import ArraySequence
+from dipy.segment.fss import FastStreamlineSearch, nearest_from_matrix_row
+from nibabel.streamlines.array_sequence import ArraySequence
 import multiprocessing
 # import utils.tract_feat as tract_feat
 from utils.funcs import obtain_TractClusterMapping, cluster2tract_label,\
@@ -154,14 +154,14 @@ class unrelatedHCP_PatchData(data.Dataset):
         unique_subject_ids = np.unique(self.subject_ids)
         num_subject = len(unique_subject_ids)
         
-        # if self.aug_times > 0: # augmented data
-        #     brain_features = np.zeros((num_subject*self.aug_times, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
-        #     brain_labels = np.zeros((num_subject*self.aug_times, self.num_fiber,1), dtype=np.int64)
-        #     aug_matrices = np.zeros((num_subject, self.aug_times, 4, 4), dtype=np.float32)
-        # else:  # non-augmented data
-        brain_features = np.zeros((num_subject, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
-        brain_labels = np.zeros((num_subject, self.num_fiber,1), dtype=np.int64)
-        brain_featras= np.zeros((num_subject, self.num_fiber, 256),dtype=np.float32)
+        if self.aug_times > 0: # augmented data
+            brain_features = np.zeros((num_subject*self.aug_times, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
+            brain_labels = np.zeros((num_subject*self.aug_times, self.num_fiber,1), dtype=np.int64)
+            aug_matrices = np.zeros((num_subject, self.aug_times, 4, 4), dtype=np.float32)
+        else:  # non-augmented data
+            brain_features = np.zeros((num_subject, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
+            brain_labels = np.zeros((num_subject, self.num_fiber,1), dtype=np.int64)
+            brain_featras= np.zeros((num_subject, self.num_fiber, 256),dtype=np.float32)
                 
                 
         for i_subject, unique_id in enumerate(unique_subject_ids):  # for each subject
@@ -172,73 +172,73 @@ class unrelatedHCP_PatchData(data.Dataset):
             cur_labels = self.labels[cur_select_idxs, None]
             cur_feat_ras= self.ras_feat[cur_select_idxs,:]
             
-            # if self.aug_times > 0:
-            #     # Augmentation the brain. Note that torch.from_numpy and .numpy() return data sharing the same memory location
-            #     cur_features = torch.from_numpy(cur_features)  # numpy to tensor
-            #     aug_features = np.zeros((self.aug_times, *cur_features.shape))  # (aug_times, num_fiber_per_brain, num_point_per_fiber, num_feat_per_point)  
-            #     for i_aug in range(self.aug_times):
-            #         trot = None
-            #         cur_angles = []
-            #         # rotations
-            #         for i, rot_ang in enumerate(self.rot_ang_lst):
-            #             angle = ((torch.rand(1) - 0.5)*2*rot_ang).item()  # random angle between [-rot_ang, rot_ang] 
-            #             rot_axis_name = get_rot_axi(self.aug_axis_lst[i])
-            #             cur_trot = RotateAxisAngle(angle=angle, axis=rot_axis_name, degrees=True)  #  rotate around the axis by the angle
-            #             cur_angles.append(round(angle,1))
-            #             if trot is None:
-            #                 trot = cur_trot
-            #             else:
-            #                 trot = trot.compose(cur_trot)
+            if self.aug_times > 0:
+                # Augmentation the brain. Note that torch.from_numpy and .numpy() return data sharing the same memory location
+                cur_features = torch.from_numpy(cur_features)  # numpy to tensor
+                aug_features = np.zeros((self.aug_times, *cur_features.shape))  # (aug_times, num_fiber_per_brain, num_point_per_fiber, num_feat_per_point)  
+                for i_aug in range(self.aug_times):
+                    trot = None
+                    cur_angles = []
+                    # rotations
+                    for i, rot_ang in enumerate(self.rot_ang_lst):
+                        angle = ((torch.rand(1) - 0.5)*2*rot_ang).item()  # random angle between [-rot_ang, rot_ang] 
+                        rot_axis_name = get_rot_axi(self.aug_axis_lst[i])
+                        cur_trot = RotateAxisAngle(angle=angle, axis=rot_axis_name, degrees=True)  #  rotate around the axis by the angle
+                        cur_angles.append(round(angle,1))
+                        if trot is None:
+                            trot = cur_trot
+                        else:
+                            trot = trot.compose(cur_trot)
                             
-            #         # scales
-            #         if self.scale_ratio_range[0] == 0 and self.scale_ratio_range[1] == 0:
-            #             scale_r = 1.0
-            #         else:
-            #             scale_r = torch.distributions.Uniform(1-self.scale_ratio_range[0], 1+self.scale_ratio_range[1]).sample().item()  # random scale between [1-scale_ratio_range[0], 1+scale_ratio_range[1]]
-            #         cur_trot = Scale(scale_r) 
-            #         trot = trot.compose(cur_trot)
+                    # scales
+                    if self.scale_ratio_range[0] == 0 and self.scale_ratio_range[1] == 0:
+                        scale_r = 1.0
+                    else:
+                        scale_r = torch.distributions.Uniform(1-self.scale_ratio_range[0], 1+self.scale_ratio_range[1]).sample().item()  # random scale between [1-scale_ratio_range[0], 1+scale_ratio_range[1]]
+                    cur_trot = Scale(scale_r) 
+                    trot = trot.compose(cur_trot)
                         
-            #         # translations
-            #         LR_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
-            #         AP_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis] 
-            #         SI_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
-            #         cur_trot = Translate(LR_trans, AP_trans, SI_trans)
-            #         trot = trot.compose(cur_trot)
+                    # translations
+                    LR_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
+                    AP_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis] 
+                    SI_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
+                    cur_trot = Translate(LR_trans, AP_trans, SI_trans)
+                    trot = trot.compose(cur_trot)
                         
-            #         aug_matrices[i_subject,i_aug,:,:] = np.array(trot.get_matrix())
-            #         aug_feat = trot.transform_points(cur_features.float()).numpy()  # rotate and then convert tensor to numpy
+                    aug_matrices[i_subject,i_aug,:,:] = np.array(trot.get_matrix())
+                    aug_feat = trot.transform_points(cur_features.float()).numpy()  # rotate and then convert tensor to numpy
                     
-            #         scale_r, LR_trans, AP_trans, SI_trans = round(scale_r,3),round(LR_trans,1),round(AP_trans,1),round(SI_trans,1)
-            #         if self.recenter:
-            #             aug_feat = center_tractography(self.root, aug_feat)
-            #             # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {} (centered). Aug axis order: {}'
-            #                             # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
-            #         # else:
-            #             # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {}. Aug axis order: {}'
-            #                             # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
-            #         aug_features[i_aug,...] = aug_feat
-            #         # save augmented data
-            #         if self.save_aug_data and i_subject < 5: # only save the first 5 subjects
-            #             aug_data_save_path = os.path.join(self.out_path,'AugmentedData',self.split)
-            #             makepath(aug_data_save_path)
-            #             aug_feat_pd = array2vtkPolyData(aug_feat)
-            #             if self.recenter:
-            #                 aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}_Recenter'\
-            #                     .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
-            #                             scale_r, LR_trans, AP_trans, SI_trans)
-            #             else:
-            #                 aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}'\
-            #                     .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
-            #                             scale_r, LR_trans, AP_trans, SI_trans)                           
-            #             aug_feat_name = aug_feat_name.replace('.', '`') + '.vtk'
-            #             wma.io.write_polydata(aug_feat_pd, os.path.join(aug_data_save_path,aug_feat_name))  
-            #             print('Save augmented data to {}'.format(os.path.join(aug_data_save_path,aug_feat_name)))
+                    scale_r, LR_trans, AP_trans, SI_trans = round(scale_r,3),round(LR_trans,1),round(AP_trans,1),round(SI_trans,1)
+                    if self.recenter:
+                        aug_feat = center_tractography(self.root, aug_feat)
+                        # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {} (centered). Aug axis order: {}'
+                                        # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
+                    # else:
+                        # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {}. Aug axis order: {}'
+                                        # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
+                    aug_features[i_aug,...] = aug_feat
+                    # save augmented data
+                    if self.save_aug_data and i_subject < 5: # only save the first 5 subjects
+                        aug_data_save_path = os.path.join(self.out_path,'AugmentedData',self.split)
+                        makepath(aug_data_save_path)
+                        aug_feat_pd = array2vtkPolyData(aug_feat)
+                        if self.recenter:
+                            aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}_Recenter'\
+                                .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
+                                        scale_r, LR_trans, AP_trans, SI_trans)
+                        else:
+                            aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}'\
+                                .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
+                                        scale_r, LR_trans, AP_trans, SI_trans)                           
+                        aug_feat_name = aug_feat_name.replace('.', '`') + '.vtk'
+                        wma.io.write_polydata(aug_feat_pd, os.path.join(aug_data_save_path,aug_feat_name))  
+                        print('Save augmented data to {}'.format(os.path.join(aug_data_save_path,aug_feat_name)))
     
-            #     brain_features[i_subject*self.aug_times:(i_subject+1)*self.aug_times, :,:,:] = aug_features
-            #     # the brain features get increased by 30 times due to augmentation  
+                brain_features[i_subject*self.aug_times:(i_subject+1)*self.aug_times, :,:,:] = aug_features
+                # the brain features get increased by 30 times due to augmentation  
             
-            # else:
-            brain_features[i_subject,:,:,:] = cur_features
+            else:
+                brain_features[i_subject,:,:,:] = cur_features
             brain_featras[i_subject:,:] = cur_feat_ras
             
             if self.use_tracts_training:
@@ -332,79 +332,79 @@ class unrelatedHCP_PatchData(data.Dataset):
         fibre_feat_ras=self.brain_feat_ras.reshape(-1, 256)
         return fiber_feat, fiber_label,local_feat, new_subidx,fibre_feat_ras
     
-# def cal_hyperlocal(cur_feat,local_feat,radius=6):#[n_fiber,n_feat,n_point]   [n_fiber, k, n_feat, n_point]
-#     cur_feat = np.transpose(cur_feat,(0,2,1))
-#     local_feat = np.transpose(local_feat,(0,1,3,2))
-#     num_streamlines=cur_feat.shape[0]
-#     hyper_local_feat=np.zeros((num_streamlines,150,3),dtype=np.float32)
-#     for i in range(num_streamlines):
-#         cur_local_feat = local_feat[i,...]
-#         cur_query=cur_feat[i,...]
-#         cur_hyper_local_feat = hyperlocal_fn(radius, cur_query, cur_local_feat,plot=False,interactive=False)
-#         if(cur_hyper_local_feat.shape[0]==0):
-#             cur_local_pc=cur_local_feat.reshape(-1,3)
-#             selected_idx = np.random.randint(0, cur_local_pc.shape[0], 150)
-#             localpc=cur_local_pc[selected_idx]
-#         else:
-#             cur_hyper_local_pc=cur_hyper_local_feat.reshape(-1,3)
-#             if(cur_hyper_local_pc.shape[0]>150):
-#                 selected_idx = np.random.randint(0, cur_hyper_local_pc.shape[0], 150)
-#                 localpc=cur_hyper_local_pc[selected_idx]
-#             else:
-#                 localpc=cur_hyper_local_pc
-#                 cur_local_pc=cur_local_feat.reshape(-1,3)
-#                 selected_idx=np.random.randint(0, cur_local_pc.shape[0], 150-cur_hyper_local_pc.shape[0])
-#                 k_kocal=cur_local_pc[selected_idx]
-#                 localpc=np.concatenate((localpc,k_kocal),axis=0)
-#         hyper_local_feat[i,...]=localpc
+def cal_hyperlocal(cur_feat,local_feat,radius=6):#[n_fiber,n_feat,n_point]   [n_fiber, k, n_feat, n_point]
+    cur_feat = np.transpose(cur_feat,(0,2,1))
+    local_feat = np.transpose(local_feat,(0,1,3,2))
+    num_streamlines=cur_feat.shape[0]
+    hyper_local_feat=np.zeros((num_streamlines,150,3),dtype=np.float32)
+    for i in range(num_streamlines):
+        cur_local_feat = local_feat[i,...]
+        cur_query=cur_feat[i,...]
+        cur_hyper_local_feat = hyperlocal_fn(radius, cur_query, cur_local_feat,plot=False,interactive=False)
+        if(cur_hyper_local_feat.shape[0]==0):
+            cur_local_pc=cur_local_feat.reshape(-1,3)
+            selected_idx = np.random.randint(0, cur_local_pc.shape[0], 150)
+            localpc=cur_local_pc[selected_idx]
+        else:
+            cur_hyper_local_pc=cur_hyper_local_feat.reshape(-1,3)
+            if(cur_hyper_local_pc.shape[0]>150):
+                selected_idx = np.random.randint(0, cur_hyper_local_pc.shape[0], 150)
+                localpc=cur_hyper_local_pc[selected_idx]
+            else:
+                localpc=cur_hyper_local_pc
+                cur_local_pc=cur_local_feat.reshape(-1,3)
+                selected_idx=np.random.randint(0, cur_local_pc.shape[0], 150-cur_hyper_local_pc.shape[0])
+                k_kocal=cur_local_pc[selected_idx]
+                localpc=np.concatenate((localpc,k_kocal),axis=0)
+        hyper_local_feat[i,...]=localpc
 
 
-#     return hyper_local_feat
+    return hyper_local_feat
 
-# def hyperlocal_fn(radius, 
-#                             query,
-#                             ref_streamlines,
-#                             plot = False,
-#                             interactive = False):
-#     # ref_streamlines = bicubic_interpolate(ref_streamlines, nppf= 100)
-#     # query = bicubic_interpolate(query)
-#     ref_streamlines = ArraySequence(ref_streamlines)
-#     query = ArraySequence(query[None, ...])
-#     """ To get bundle specific streamlines, or very similar streamlines based on MDF distance and other
-#     norm based distance. 
-#     Fast Streamline Search [StOnge2022]
-#     Parameters
-#     @query: string of the path where the query streamline is stored
-#     @hcp_ref_streamlines,: string of the path where the wbt is stored
+def hyperlocal_fn(radius, 
+                            query,
+                            ref_streamlines,
+                            plot = False,
+                            interactive = False):
+    # ref_streamlines = bicubic_interpolate(ref_streamlines, nppf= 100)
+    # query = bicubic_interpolate(query)
+    ref_streamlines = ArraySequence(ref_streamlines)
+    query = ArraySequence(query[None, ...])
+    """ To get bundle specific streamlines, or very similar streamlines based on MDF distance and other
+    norm based distance. 
+    Fast Streamline Search [StOnge2022]
+    Parameters
+    @query: string of the path where the query streamline is stored
+    @hcp_ref_streamlines,: string of the path where the wbt is stored
 
-#     Returns: a set of streamlines very similar to the query streamline from the ref_streamlines,
-#     @ids_s: ids of streamlines from the source
-#     @ids_ref: ids of the reference streamlines
-#     @nn_dist: nearest neighbour distance 
-#     @ref_streamlines,: reference ref_streamlines, or the WBT of the test subject in the same registration space as the test streamline"""
+    Returns: a set of streamlines very similar to the query streamline from the ref_streamlines,
+    @ids_s: ids of streamlines from the source
+    @ids_ref: ids of the reference streamlines
+    @nn_dist: nearest neighbour distance 
+    @ref_streamlines,: reference ref_streamlines, or the WBT of the test subject in the same registration space as the test streamline"""
 
-#     fs_tree = FastStreamlineSearch(ref_streamlines=query,
-#                                 max_radius=radius)
-#     coo_mdist_mtx = fs_tree.radius_search(ref_streamlines, radius=radius)
-#     # logger2 = create_logger('my_logger', '/scratch/jankita.scee.iitmandi/TractCloud/utils/hyperlocal.log')
+    fs_tree = FastStreamlineSearch(ref_streamlines=query,
+                                max_radius=radius)
+    coo_mdist_mtx = fs_tree.radius_search(ref_streamlines, radius=radius)
+    # logger2 = create_logger('my_logger', '/scratch/jankita.scee.iitmandi/TractCloud/utils/hyperlocal.log')
 
-#     # Log some messages
+    # Log some messages
 
-#     # Extract indices of streamlines with an similar ones in the reference
-#     try:
-#         ids_s = np.unique(coo_mdist_mtx.row)    
-#         ids_ref = np.unique(coo_mdist_mtx.col)
-#         nn_s, nn_ref, nn_dist = nearest_from_matrix_row(coo_mdist_mtx)
-#         del nn_s, nn_ref
+    # Extract indices of streamlines with an similar ones in the reference
+    try:
+        ids_s = np.unique(coo_mdist_mtx.row)    
+        ids_ref = np.unique(coo_mdist_mtx.col)
+        nn_s, nn_ref, nn_dist = nearest_from_matrix_row(coo_mdist_mtx)
+        del nn_s, nn_ref
 
-#         # ref_streamlines[id_s] are the similar streamlines for query streamline 
-#         ref_streamlines=np.array(ref_streamlines)
-#         # logger2.info(f"similar streamlines for query streamline: {len(ids_s)}")
-#         return ref_streamlines[ids_s]
+        # ref_streamlines[id_s] are the similar streamlines for query streamline 
+        ref_streamlines=np.array(ref_streamlines)
+        # logger2.info(f"similar streamlines for query streamline: {len(ids_s)}")
+        return ref_streamlines[ids_s]
 
-#     except Exception as e:
-#         return np.array([[[]]])
-#     # return ids_s, ids_ref, nn_dist, ref_streamlines
+    except Exception as e:
+        return np.array([[[]]])
+    # return ids_s, ids_ref, nn_dist, ref_streamlines
 
 def cal_local_feat(cur_feat, k_ds_rate, k, use_endpoints_dist, cal_equiv_dist):
 

@@ -163,7 +163,6 @@ class MultiEmbed(nn.Module):
             x=torch.concat((x,ras_feat),dim=1)
         elif(self.args.use_cnn):
             x=ras_feat
-        # print("shape of x before classification",x.shape)
         # del dvae_embedding
         x = F.relu(self.bn1(self.fc1(x)))
         # print("shape of x after fc1",x.shape)
