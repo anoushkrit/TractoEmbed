@@ -1,5 +1,5 @@
 # TractoEmbed
-TractoEmbed: Multi-level embeddings for Tract Segmentation
+TractoEmbed: Modular Multi-level embeddings for Tract Segmentation
 
 Keywords: **Tract Segmentation** · **PointCloud** · **3D Computer Vision** ·
 **Tractography** · **Diffusion MRI**
