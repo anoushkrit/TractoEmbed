@@ -14,7 +14,7 @@ import torch.optim as optim
 import torch.utils.data
 import torch.nn.functional as F
 
-from datasets.dataset_localpc import unrelatedHCP_PatchData
+from datasets.data_loader import unrelatedHCP_PatchData
 from models.multi_embed_concat import MultiEmbed
 # from models.dgcnn import tract_DGCNN_cls
 from utils.logger import create_logger
@@ -132,10 +132,8 @@ def load_model(args, num_classes, device, test=False):
     # model setting 
     # if args.model_name == 'dgcnn':
     #     DL_model = tract_DGCNN_cls(num_classes,args,device)
-    if args.model_name == 'pointnet':
-        DL_model = MultiEmbed(args,k=args.k, k_global=args.k_global, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
-    else:
-        raise ValueError('Please input valid model name dgcnn | pointnet')
+    # if args.model_name == 'pointnet':
+    DL_model = MultiEmbed(args,k=args.k, k_global=args.k_global, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
         
     # load weights when testing
     if test:
@@ -473,8 +471,8 @@ if __name__ == '__main__':
     # adaptively change the args
     args = adaptive_args(args)
     # convert str to num
-    args.rot_ang_lst = str2num(args.rot_ang_lst)
-    args.scale_ratio_range = str2num(args.scale_ratio_range)
+    # args.rot_ang_lst = str2num(args.rot_ang_lst)
+    # args.scale_ratio_range = str2num(args.scale_ratio_range)
     # save local+global feature
     args.save_knn_neighbors = True
     # paths

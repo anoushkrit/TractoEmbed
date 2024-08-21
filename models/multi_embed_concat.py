@@ -28,20 +28,22 @@ class MultiEmbed(nn.Module):
         self.args=args
         if(args.use_pointnet):
             self.feat = PointNetfeat( args = args, k=k, k_global=k_global, global_feat=True, feature_transform=feature_transform, first_feature_transform=first_feature_transform)
-        if(args.dVAE=="gold"):
-            config_path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/config.yaml"
-            path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/ckpt-best.pth"
-        elif(args.dVAE=="hyperlocal"):
-            config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/hyperlocal_fss_1024/config.yaml"
-            path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/hyperlocal_fss_1024/ckpt-best.pth"
-        elif(args.dVAE=="goldy"):
-            config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/GOLD_dvae_16pts/config.yaml"
-            path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/GOLD_dvae_16pts/ckpt-best.pth"
-        else:
-            config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/TCdvae/tract_classification/B2e15_SL15/config.yaml"  #new local dvae
-            path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/TCdvae/tract_classification/B2e15_SL15/ckpt-best.pth"
+        # if(args.dVAE=="gold"):
+        #     config_path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/config.yaml"
+        #     path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/ckpt-best.pth"
+        # elif(args.dVAE=="hyperlocal"):
+        #     config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/hyperlocal_fss_1024/config.yaml"
+        #     path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/hyperlocal_fss_1024/ckpt-best.pth"
+        # elif(args.dVAE=="goldy"):
+        #     config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/GOLD_dvae_16pts/config.yaml"
+        #     path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/dvae/tract_classification/GOLD_dvae_16pts/ckpt-best.pth"
+        # else:
+        #     config_path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/TCdvae/tract_classification/B2e15_SL15/config.yaml"  #new local dvae
+        #     path="/scratch/jankita.scee.iitmandi/PointBERT/PointBERT/param_trial/TCdvae/tract_classification/B2e15_SL15/ckpt-best.pth"
         
         if(args.use_dvae):
+            config_path=args.dvae_config_path
+            path=args.dvae_weight_path
             with open(config_path,'r') as file:
                 config=yaml.safe_load(file)
             

@@ -154,14 +154,14 @@ class unrelatedHCP_PatchData(data.Dataset):
         unique_subject_ids = np.unique(self.subject_ids)
         num_subject = len(unique_subject_ids)
         
-        if self.aug_times > 0: # augmented data
-            brain_features = np.zeros((num_subject*self.aug_times, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
-            brain_labels = np.zeros((num_subject*self.aug_times, self.num_fiber,1), dtype=np.int64)
-            aug_matrices = np.zeros((num_subject, self.aug_times, 4, 4), dtype=np.float32)
-        else:  # non-augmented data
-            brain_features = np.zeros((num_subject, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
-            brain_labels = np.zeros((num_subject, self.num_fiber,1), dtype=np.int64)
-            brain_featras= np.zeros((num_subject, self.num_fiber, 256),dtype=np.float32)
+        # if self.aug_times > 0: # augmented data
+        #     brain_features = np.zeros((num_subject*self.aug_times, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
+        #     brain_labels = np.zeros((num_subject*self.aug_times, self.num_fiber,1), dtype=np.int64)
+        #     aug_matrices = np.zeros((num_subject, self.aug_times, 4, 4), dtype=np.float32)
+        # else:  # non-augmented data
+        brain_features = np.zeros((num_subject, self.num_fiber, self.num_point, num_feat_per_point),dtype=np.float32)
+        brain_labels = np.zeros((num_subject, self.num_fiber,1), dtype=np.int64)
+        brain_featras= np.zeros((num_subject, self.num_fiber, 256),dtype=np.float32)
                 
                 
         for i_subject, unique_id in enumerate(unique_subject_ids):  # for each subject
@@ -172,73 +172,73 @@ class unrelatedHCP_PatchData(data.Dataset):
             cur_labels = self.labels[cur_select_idxs, None]
             cur_feat_ras= self.ras_feat[cur_select_idxs,:]
             
-            if self.aug_times > 0:
-                # Augmentation the brain. Note that torch.from_numpy and .numpy() return data sharing the same memory location
-                cur_features = torch.from_numpy(cur_features)  # numpy to tensor
-                aug_features = np.zeros((self.aug_times, *cur_features.shape))  # (aug_times, num_fiber_per_brain, num_point_per_fiber, num_feat_per_point)  
-                for i_aug in range(self.aug_times):
-                    trot = None
-                    cur_angles = []
-                    # rotations
-                    for i, rot_ang in enumerate(self.rot_ang_lst):
-                        angle = ((torch.rand(1) - 0.5)*2*rot_ang).item()  # random angle between [-rot_ang, rot_ang] 
-                        rot_axis_name = get_rot_axi(self.aug_axis_lst[i])
-                        cur_trot = RotateAxisAngle(angle=angle, axis=rot_axis_name, degrees=True)  #  rotate around the axis by the angle
-                        cur_angles.append(round(angle,1))
-                        if trot is None:
-                            trot = cur_trot
-                        else:
-                            trot = trot.compose(cur_trot)
+            # if self.aug_times > 0:
+            #     # Augmentation the brain. Note that torch.from_numpy and .numpy() return data sharing the same memory location
+            #     cur_features = torch.from_numpy(cur_features)  # numpy to tensor
+            #     aug_features = np.zeros((self.aug_times, *cur_features.shape))  # (aug_times, num_fiber_per_brain, num_point_per_fiber, num_feat_per_point)  
+            #     for i_aug in range(self.aug_times):
+            #         trot = None
+            #         cur_angles = []
+            #         # rotations
+            #         for i, rot_ang in enumerate(self.rot_ang_lst):
+            #             angle = ((torch.rand(1) - 0.5)*2*rot_ang).item()  # random angle between [-rot_ang, rot_ang] 
+            #             rot_axis_name = get_rot_axi(self.aug_axis_lst[i])
+            #             cur_trot = RotateAxisAngle(angle=angle, axis=rot_axis_name, degrees=True)  #  rotate around the axis by the angle
+            #             cur_angles.append(round(angle,1))
+            #             if trot is None:
+            #                 trot = cur_trot
+            #             else:
+            #                 trot = trot.compose(cur_trot)
                             
-                    # scales
-                    if self.scale_ratio_range[0] == 0 and self.scale_ratio_range[1] == 0:
-                        scale_r = 1.0
-                    else:
-                        scale_r = torch.distributions.Uniform(1-self.scale_ratio_range[0], 1+self.scale_ratio_range[1]).sample().item()  # random scale between [1-scale_ratio_range[0], 1+scale_ratio_range[1]]
-                    cur_trot = Scale(scale_r) 
-                    trot = trot.compose(cur_trot)
+            #         # scales
+            #         if self.scale_ratio_range[0] == 0 and self.scale_ratio_range[1] == 0:
+            #             scale_r = 1.0
+            #         else:
+            #             scale_r = torch.distributions.Uniform(1-self.scale_ratio_range[0], 1+self.scale_ratio_range[1]).sample().item()  # random scale between [1-scale_ratio_range[0], 1+scale_ratio_range[1]]
+            #         cur_trot = Scale(scale_r) 
+            #         trot = trot.compose(cur_trot)
                         
-                    # translations
-                    LR_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
-                    AP_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis] 
-                    SI_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
-                    cur_trot = Translate(LR_trans, AP_trans, SI_trans)
-                    trot = trot.compose(cur_trot)
+            #         # translations
+            #         LR_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
+            #         AP_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis] 
+            #         SI_trans = ((torch.rand(1) - 0.5)*2*self.trans_dis).item() # random translation between [-trans_dis, +trans_dis]
+            #         cur_trot = Translate(LR_trans, AP_trans, SI_trans)
+            #         trot = trot.compose(cur_trot)
                         
-                    aug_matrices[i_subject,i_aug,:,:] = np.array(trot.get_matrix())
-                    aug_feat = trot.transform_points(cur_features.float()).numpy()  # rotate and then convert tensor to numpy
+            #         aug_matrices[i_subject,i_aug,:,:] = np.array(trot.get_matrix())
+            #         aug_feat = trot.transform_points(cur_features.float()).numpy()  # rotate and then convert tensor to numpy
                     
-                    scale_r, LR_trans, AP_trans, SI_trans = round(scale_r,3),round(LR_trans,1),round(AP_trans,1),round(SI_trans,1)
-                    if self.recenter:
-                        aug_feat = center_tractography(self.root, aug_feat)
-                        # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {} (centered). Aug axis order: {}'
-                                        # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
-                    # else:
-                        # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {}. Aug axis order: {}'
-                                        # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
-                    aug_features[i_aug,...] = aug_feat
-                    # save augmented data
-                    if self.save_aug_data and i_subject < 5: # only save the first 5 subjects
-                        aug_data_save_path = os.path.join(self.out_path,'AugmentedData',self.split)
-                        makepath(aug_data_save_path)
-                        aug_feat_pd = array2vtkPolyData(aug_feat)
-                        if self.recenter:
-                            aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}_Recenter'\
-                                .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
-                                        scale_r, LR_trans, AP_trans, SI_trans)
-                        else:
-                            aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}'\
-                                .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
-                                        scale_r, LR_trans, AP_trans, SI_trans)                           
-                        aug_feat_name = aug_feat_name.replace('.', '`') + '.vtk'
-                        wma.io.write_polydata(aug_feat_pd, os.path.join(aug_data_save_path,aug_feat_name))  
-                        print('Save augmented data to {}'.format(os.path.join(aug_data_save_path,aug_feat_name)))
+            #         scale_r, LR_trans, AP_trans, SI_trans = round(scale_r,3),round(LR_trans,1),round(AP_trans,1),round(SI_trans,1)
+            #         if self.recenter:
+            #             aug_feat = center_tractography(self.root, aug_feat)
+            #             # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {} (centered). Aug axis order: {}'
+            #                             # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
+            #         # else:
+            #             # self.logger.info('Subject idx {} (unique ID {}, aug {}): rotation {}, scale {}, translation {}. Aug axis order: {}'
+            #                             # .format(i_subject, unique_id, i_aug, cur_angles, scale_r, [LR_trans, AP_trans, SI_trans], self.aug_axis_lst))
+            #         aug_features[i_aug,...] = aug_feat
+            #         # save augmented data
+            #         if self.save_aug_data and i_subject < 5: # only save the first 5 subjects
+            #             aug_data_save_path = os.path.join(self.out_path,'AugmentedData',self.split)
+            #             makepath(aug_data_save_path)
+            #             aug_feat_pd = array2vtkPolyData(aug_feat)
+            #             if self.recenter:
+            #                 aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}_Recenter'\
+            #                     .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
+            #                             scale_r, LR_trans, AP_trans, SI_trans)
+            #             else:
+            #                 aug_feat_name = 'SubID{}Aug{}_RotR{}A{}S{}_Scale{}_TransR{}A{}S{}'\
+            #                     .format(i_subject, i_aug, cur_angles[0],cur_angles[1],cur_angles[2],
+            #                             scale_r, LR_trans, AP_trans, SI_trans)                           
+            #             aug_feat_name = aug_feat_name.replace('.', '`') + '.vtk'
+            #             wma.io.write_polydata(aug_feat_pd, os.path.join(aug_data_save_path,aug_feat_name))  
+            #             print('Save augmented data to {}'.format(os.path.join(aug_data_save_path,aug_feat_name)))
     
-                brain_features[i_subject*self.aug_times:(i_subject+1)*self.aug_times, :,:,:] = aug_features
-                # the brain features get increased by 30 times due to augmentation  
+            #     brain_features[i_subject*self.aug_times:(i_subject+1)*self.aug_times, :,:,:] = aug_features
+            #     # the brain features get increased by 30 times due to augmentation  
             
-            else:
-                brain_features[i_subject,:,:,:] = cur_features
+            # else:
+            brain_features[i_subject,:,:,:] = cur_features
             brain_featras[i_subject:,:] = cur_feat_ras
             
             if self.use_tracts_training:

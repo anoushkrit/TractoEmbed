@@ -35,7 +35,14 @@ pip install --upgrade https://github.com/unlimblue/KNN_CUDA/releases/download/0.
 ```
 
 ## Dataset
-We have used the processed data used by Tractcloud. You can directly download our processed data at https://github.com/SlicerDMRI/TractCloud/releases (1 million streamlines, 800 clusters & 800 outliers). This is the streamline dataset.
+We have used the processed data used by Tractcloud. You can directly download our processed data at https://github.com/SlicerDMRI/TractCloud/releases (1 million streamlines, 800 clusters & 800 outliers). This is the streamline dataset. 
+
+```bash
+./  TractoEmbed		
+├── datasets 				
+│   ├── train.pickle  	       
+│   ├── val.pickle   
+│   ├── test.pickle               
 
 ## Model
 
@@ -45,7 +52,14 @@ We have used the processed data used by Tractcloud. You can directly download ou
 
 
 ### Training 
+To train the multiembed layers, run the following commands.
 
+```
+$ cd train_test
+$ sh train_multiembed.sh
+```
+
+You can also change the arguments in the train_multiembed.sh file.
 
 #### Cluster Encoder Training 
 

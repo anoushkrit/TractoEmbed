@@ -11,7 +11,7 @@ import torch.utils.data
 from utils.logger import create_logger
 from utils.funcs import cluster2tract_label, unify_path, makepath, fix_seed, obtain_TractClusterMapping
 from utils.cli import create_parser, load_args, adaptive_args
-from train_localpc import load_datasets, load_model, results_logging, train_val_test_forward
+from train_test.train import load_datasets, load_model, results_logging, train_val_test_forward
 
 
 def load_batch_data():
