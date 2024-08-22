@@ -10,9 +10,15 @@ Keywords: **Tract Segmentation** · **PointCloud** · **3D Computer Vision** ·
 White matter tract segmentation is a crucial task for studying brain structural connectivity and neurosurgical planning. However, segmentation remains challenging due to issues like class imbalance between major and minor tracts, structural similarity, subject variability, and symmetric streamlines between hemispheres etc. To address these challenges
 We propose **TractoEmbed**, a modular multi-level embedding framework that encodes localized representations through learning task and representation specific encoders. TractoEmbed introduces a novel hierarchical streamline data representation that captures maximum spatial information at each level, including individual streamlines, clusters and patches. Experiments show that TractoEmbed clearly outperforms state-of-the-art methods in white matter tract segmentation across different datasets, spanning various age groups. The modular framework directly allows for the integration of additional embeddings in the future works.
 
-## **init**
 
 ## Usage
+
+### Clone the repository
+```
+git clone https://github.com/anoushkrit/TractoEmbed
+cd TractoEmbed/
+```
+https://github.com/anoushkrit/TractoEmbed
 
 ### Requirements
 
@@ -92,10 +98,29 @@ Adjust the arguments in the train_multiembed.sh file as necessary.
 
 ### Testing
 
-### Dataset
+## Results
 
+| **Data**                              | **Model: Type**           | **Acc (%)** | **F1 (%)** |
+|---------------------------------------|---------------------------|-------------|------------|
+| **Single Streamline**                 | DeepWMA (CNN)             | 90.29       | 88.12      |
+|                                       | DCNN++ (CNN)              | 91.26       | 89.14      |
+|                                       | PointNet (PCD)            | 91.36       | 89.12      |
+|                                       | DGCNN (Graph)             | **91.85**   | **89.78**  |
+| **Local PCD** (k = 20)                | TractCloud: PointNet      | 91.51       | 89.25      |
+|                                       | TractCloud: DGCNN (Graph) | 91.91       | 90.03      |
+|                                       | **TractoEmbed (ours)**    | **92.09**   | **90.07**  |
+| **Hyperlocal PCD** (k = 5)            | TractCloud (PointNet)     | 91.12       | 88.66      |
+|                                       | **TractoEmbed (ours)**    | **93.04**   | **91.38**  |
+| **Local + Global Representation**     | TractCloud: PointNet      | **92.28**   | **90.36**  |
+|                                       | TractCloud: DGCNN (Graph) | 91.99       | 90.10      |
+
+### Citation
 If you find this work useful, please cite
 
 ```bibtex
 
 ```
+
+
+## Contributors
+This project is mainly developed and maintained by [Anoushkrit Goel](https://github.com/anoushkrit), [Bipanjit Singh](https://github.com/BipanjitGill). Issues and contributions are very welcome at any time. 
