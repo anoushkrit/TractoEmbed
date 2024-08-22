@@ -63,7 +63,7 @@ The directory structure for the dataset is as follows:
 
 To train the patch encoder(dVAE), simply run:
 ```
-bash_scripts/train.sh <GPU_IDS>\
+bash bash_scripts/train.sh <GPU_IDS>\
         --config cfgs/dvae.yaml\
         --exp_name <name>
 ```
@@ -78,10 +78,10 @@ To extract streamline embeddings, use the pretrained DeepWMA model. The embeddin
 For training the streamline encoder from scratch, refer to the DeepWMA repository: 
 https://github.com/zhangfanmark/DeepWMA
 
-### Cluster Encoder Training
+### Cluster Encoder Pretraining
 The cluster encoder is trained in conjunction with the multiembed classification layer, eliminating the need for pretraining.
 
-### MECL
+### MultiEmbed Classification Training 
 To train the multiembed layers, run the following commands.
 
 ```
