@@ -16,11 +16,15 @@ We propose **TractoEmbed**, a modular multi-level embedding framework that encod
 
 ### Requirements
 
-- PyTorch >= 1.7.0
-- python == 3.7
-- CUDA >= 10.2
+To run TractoEmbed, the following requirements must be met:
 
-```
+- **PyTorch**: Version 1.7.0 or higher
+- **Python**: Version 3.7
+- **CUDA**: Version 10.2 or higher
+
+Installation of dependencies can be accomplished with:
+
+```bash
 pip install -r requirements.txt
 ```
 
@@ -39,7 +43,11 @@ pip install --upgrade https://github.com/unlimblue/KNN_CUDA/releases/download/0.
 
 ## Dataset
 
-We have used the processed data used by Tractcloud. You can directly download our processed data at https://github.com/SlicerDMRI/TractCloud/releases (1 million streamlines, 800 clusters & 800 outliers). This is the streamline dataset.
+The processed data utilized by Tractcloud can be downloaded from the following link:
+https://github.com/SlicerDMRI/TractCloud/releases. 
+The dataset includes 1 million streamlines, 800 clusters, and 800 outliers.
+
+The directory structure for the dataset is as follows:
 
 ```bash
 ./  TractoEmbed
@@ -49,19 +57,29 @@ We have used the processed data used by Tractcloud. You can directly download ou
 │   ├── test.pickle
 ```
 
-## Model
-
+## Model Training
+ 
 ### Patch Encoder Pretraining
 
+To train the patch encoder(dVAE), simply run:
+```
+bash_scripts/train.sh <GPU_IDS>\
+        --config cfgs/dvae.yaml\
+        --exp_name <name>
+```
+Replace <GPU_IDS> with the desired GPU IDs and <name> with the experiment name.
+
+After training the patch encoder, update the dvae config path and model weight path in the ./train_test/train_multiembed.sh file.
 
 ### Streamline Encoder Pretraining
 
-Use the pretrained DeepWMA to extract the streamline encoding of each streamline from the last layer after the max pool layer and save it in the training, validation and test pickle files respectively with key "cnn_embed".
+To extract streamline embeddings, use the pretrained DeepWMA model. The embeddings should be saved in the training, validation, and test pickle files under the key "cnn_embed".
 
-To train the streamline encoder from the scratch, you can check out: https://github.com/zhangfanmark/DeepWMA
+For training the streamline encoder from scratch, refer to the DeepWMA repository: 
+https://github.com/zhangfanmark/DeepWMA
 
-#### Cluster Encoder Training
-The cluster encoder is trained along with multiembed classification layer. There is no need to pretrain the cluster encoder.
+### Cluster Encoder Training
+The cluster encoder is trained in conjunction with the multiembed classification layer, eliminating the need for pretraining.
 
 ### MECL
 To train the multiembed layers, run the following commands.
@@ -70,8 +88,7 @@ To train the multiembed layers, run the following commands.
 $ cd train_test
 $ sh train_multiembed.sh
 ```
-
-You can also change the arguments in the train_multiembed.sh file.
+Adjust the arguments in the train_multiembed.sh file as necessary.
 
 ### Testing
 
