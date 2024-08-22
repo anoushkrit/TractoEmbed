@@ -19,13 +19,12 @@ sample_pts=190
 loss="focal" 
 # Local-global representation
 k="5"   # local, neighbor streamlines
-# k_global="0"   # global, randomly selected streamlines in the whole-brain
 k_ds_rate=1  # downsample the tractography when calculating neighbor streamlines
 k_point_level="5"  # point-level neighbors on one streamline
 # Paths
 schedular="step"
-local_global_rep_folder=k${k}_ds${k_ds_rate}_kp${k_point_level}_bs${batch_size}_nf${num_f_brain}_np${num_p_fiber}_epoch${epoch}_lr${lr}
-out_path=../ModelWeights/Method_${method}_Sample_pts${sample_pts}Data${input_data}_Unrelated100HCP_TractoEmbed/${local_global_rep_folder}
+folder_name=k${k}_ds${k_ds_rate}_kp${k_point_level}_bs${batch_size}_nf${num_f_brain}_np${num_p_fiber}_epoch${epoch}_lr${lr}
+out_path=../ModelWeights/Method_${method}_Sample_pts${sample_pts}Data${input_data}_Unrelated100HCP_TractoEmbed/${folder_name}
 # out_path="/scratch/jankita.scee.iitmandi/TractCloud/ModelWeights/golddVAE_k20_300localpc_focalloss_wucdDataEmbedding_Rot45_10_10Scale-0.45_0.05Trans50AugTimes0_Unrelated100HCP_pointnet/k20_kg0_ds1_kp5_bs128_nf10000_np15_epoch40_lr1e-3"
 input_path=../${input_data}
 export CUDA_VISIBLE_DEVICES=0

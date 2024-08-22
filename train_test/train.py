@@ -14,7 +14,7 @@ import torch.optim as optim
 import torch.utils.data
 import torch.nn.functional as F
 
-from datasets.data_loader import unrelatedHCP_PatchData
+from data_loader.data_loader import unrelatedHCP_PatchData
 from models.multi_embed_concat import MultiEmbed
 # from models.dgcnn import tract_DGCNN_cls
 from utils.logger import create_logger
@@ -53,13 +53,8 @@ def load_datasets(eval_split, args, test=False, logger=None):
                 use_tracts_training=args.use_tracts_training,
                 k=args.k,
                 k_global=args.k_global,
-                rot_ang_lst=args.rot_ang_lst,
-                scale_ratio_range=args.scale_ratio_range,
-                trans_dis=args.trans_dis,
-                aug_times=args.aug_times,
                 cal_equiv_dist=args.cal_equiv_dist,
                 k_ds_rate=args.k_ds_rate,
-                recenter=args.recenter,
                 include_org_data=args.include_org_data,
                 sample_pts=args.sample_pts)
     else:
@@ -75,13 +70,8 @@ def load_datasets(eval_split, args, test=False, logger=None):
         use_tracts_training=args.use_tracts_training,
         k=args.k,
         k_global=args.k_global,
-        rot_ang_lst=args.rot_ang_lst,
-        scale_ratio_range=args.scale_ratio_range,
-        trans_dis=args.trans_dis,
-        aug_times=args.aug_times,
         cal_equiv_dist=args.cal_equiv_dist,
         k_ds_rate=args.k_ds_rate,
-        recenter=args.recenter,
         include_org_data=args.include_org_data)
 
     return train_dataset, eval_dataset
@@ -171,13 +161,12 @@ def load_settings(DL_model):
     return optimizer, scheduler
 
 
-def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, predicted_lst, args, device, num_classes, epoch=-1, num_batch=-1,
-                           train_global_feat=None, eval_global_feat=None):
-    if state == 'test_realdata':
-        points, klocal_feat_set = data
-    else:
+def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, predicted_lst, args, device, num_classes, epoch=-1, num_batch=-1):
+    # if state == 'test_realdata':
+    #     points, klocal_feat_set = data
+    # else:
         # points [B, N_point, 3], label [B,1](cls) or [B,N_point](seg), [B, n_point, 3, k], [B]
-        points, label, klocal_feat_set, new_subidx,feat_ras_cnn = data 
+    points, label, klocal_feat_set, new_subidx,feat_ras_cnn = data 
     # if state == 'train':
     #     global_feat = torch.from_numpy(train_global_feat)
     # elif state == 'val' or state == 'test' or state =='test_realdata':
@@ -187,8 +176,8 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     num_fiber = points.shape[0]
     # num_point_per_fiber = points.shape[1]
     # label
-    if state != 'test_realdata':
-        label = label[:,0]  # [B,1] to [B]   
+    # if state != 'test_realdata':
+    label = label[:,0]  # [B,1] to [B]   
     # points
     points = points.transpose(2, 1)  # points [B, 3, N_point]
     # local feat
@@ -203,24 +192,24 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     #     kglobal_point_set = kglobal_point_set[new_subidx, ...]  # [B,3,N_point,k_global].
     
     # concat knn and random feat to get info feat
-    if args.k == 0 and args.k_global == 0:
+    if args.k == 0 :
         info_point_set = torch.Tensor([0])
     elif args.k > 0 :
         info_point_set = klocal_feat_set# [B,3,N_point]
     else:
         raise ValueError('Invalid k and k sparse values')
-    if (args.k>0 or args.k_global>0) and (idx_data==0 and epoch==1):
-        if state != 'test_realdata': 
-            start_idx = 0
-            end_idx = 100
-            org_info_feat_save_folder = os.path.join(args.out_path,'org_info_feat_vtk',state)
+    if (args.k>0)  and (idx_data==0 and epoch==1):
+        # if state != 'test_realdata': 
+        start_idx = 0
+        end_idx = 100
+        org_info_feat_save_folder = os.path.join(args.out_path,'org_info_feat_vtk',state)
             # makepath(org_info_feat_save_folder)
             # save_info_feat(points, info_point_set, new_subidx, start_idx, end_idx, args.aug_times, args.k, 
                         # args.k_global, args.k_ds_rate, org_info_feat_save_folder)
-    if state == 'test_realdata':
-        points, info_point_set = points.cuda(), info_point_set.cuda()
-    else:
-        points, label, info_point_set,feat_ras_cnn = points.cuda(), label.cuda(), info_point_set.cuda(),feat_ras_cnn.cuda()
+    # if state == 'test_realdata':
+    #     points, info_point_set = points.cuda(), info_point_set.cuda()
+    # else:
+    points, label, info_point_set,feat_ras_cnn = points.cuda(), label.cuda(), info_point_set.cuda(),feat_ras_cnn.cuda()
     
     if state == 'train':
         optimizer.zero_grad()
@@ -228,12 +217,12 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     else:
         net = net.eval() 
     # get desired results for pred -- [B,N_point,Cls] for seg, [B,Cls] for cls
-    if args.model_name == 'dgcnn':
-        pred = net(points, info_point_set)   
-    elif args.model_name == 'pointnet':
-        pred,_,_= net(points, info_point_set,feat_ras_cnn)
-    else:
-        raise ValueError('Please input valid model name dgcnn | pointnet')
+    # if args.model_name == 'dgcnn':
+    #     pred = net(points, info_point_set)   
+    # elif args.model_name == 'pointnet':
+    pred,_,_= net(points, info_point_set,feat_ras_cnn)
+    # else:
+    #     raise ValueError('Please input valid model name dgcnn | pointnet')
     # print("Pred shape",pred.shape)
     
     pred = pred.view(-1, num_classes)  # seg (B,N_point,Cls) -> (B*N_point,Cls); cls (B,Cls) -> (B,Cls)
@@ -241,12 +230,12 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     # pred=pred.permute(1,0)
     # print("Pred shape after permute:", pred.shape)
     _, pred_idx = torch.max(pred, dim=1)
-    if state != 'test_realdata':
-        label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
-        label = label.to(pred.device)
-        # focal_loss = FocalLoss().cuda()
-        # loss = focal_loss(pred, label)
-        loss=F.nll_loss(pred, label)
+    # if state != 'test_realdata':
+    label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
+    label = label.to(pred.device)
+    # focal_loss = FocalLoss().cuda()
+    # loss = focal_loss(pred, label)
+    loss=F.nll_loss(pred, label)
 
     if state == 'train':
         # print("Shapes of pred and labels", len(pred), len(label))
@@ -258,11 +247,11 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     
        # (B*N_point,Cls)->(B*N_point,) for seg, (B,Cls)-> (B) for cls         
             
-    if state != 'test_realdata':
-        total_loss += loss.item()
-        # for calculating weighted and macro metrics
-        label = label.cpu().detach().numpy()
-        labels_lst.extend(label)
+    # if state != 'test_realdata':
+    total_loss += loss.item()
+    # for calculating weighted and macro metrics
+    label = label.cpu().detach().numpy()
+    labels_lst.extend(label)
     pred_idx = pred_idx.cpu().detach().numpy()
     predicted_lst.extend(pred_idx)
     
@@ -299,7 +288,7 @@ def train_val_DL_net(net):
                 if data[2].shape[0] == args.train_batch_size:
                     total_train_loss, train_labels_lst, train_predicted_lst = \
                         train_val_test_forward(i, data, net, 'train', total_train_loss, train_labels_lst, train_predicted_lst, 
-                                            args, device, num_classes, epoch, train_num_batch, train_global_feat=train_global_feat)
+                                            args, device, num_classes, epoch, train_num_batch)
                 else:
                     continue
             else: 
@@ -322,7 +311,7 @@ def train_val_DL_net(net):
                     if data[2].shape[0] == args.train_batch_size:
                         total_val_loss, val_labels_lst, val_predicted_lst= \
                             train_val_test_forward(j, data, net, 'val', total_val_loss, val_labels_lst, val_predicted_lst, 
-                                                args, device, num_classes, epoch, eval_global_feat=val_global_feat)
+                                                args, device, num_classes, epoch)
                     else:
                         continue
                 else:

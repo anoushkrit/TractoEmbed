@@ -40,8 +40,7 @@ def bicubic_interpolate(labels, subject_ids, features,ras_feature):
 
 class unrelatedHCP_PatchData(data.Dataset):
     def __init__(self, root, out_path, logger, split='train', num_fiber_per_brain=10000,num_point_per_fiber=15, 
-                 use_tracts_training=False, k=0, k_global=0, rot_ang_lst=[0,0,0], scale_ratio_range=[0,0], trans_dis=0.0,
-                 aug_axis_lst=['LR','AP', 'SI'], aug_times=10, cal_equiv_dist=False, k_ds_rate=0.1, recenter=False, include_org_data=False,sample_pts=150):        
+                 use_tracts_training=False, k=0, k_global=0, cal_equiv_dist=False, k_ds_rate=0.1, include_org_data=False,sample_pts=150):        
         self.root = root
         self.out_path = out_path
         self.split = split
@@ -53,15 +52,15 @@ class unrelatedHCP_PatchData(data.Dataset):
         self.k_global = k_global
         self.sample_points=sample_pts
         # Augmentations, which can be replaced by the spherical coordinates
-        self.rot_ang_lst = rot_ang_lst
-        self.scale_ratio_range = scale_ratio_range
-        self.trans_dis = trans_dis
-        self.aug_axis_lst = aug_axis_lst
-        self.aug_times = aug_times
+        # self.rot_ang_lst = rot_ang_lst
+        # self.scale_ratio_range = scale_ratio_range
+        # self.trans_dis = trans_dis
+        # self.aug_axis_lst = aug_axis_lst
+        # self.aug_times = aug_times
 
 
         self.k_ds_rate=k_ds_rate  
-        self.recenter = recenter
+        # self.recenter = recenter
         self.include_org_data = include_org_data
         
         # data save for debugging
@@ -470,20 +469,20 @@ def dist_mat_knn(brain_feat, k_ds_rate, k, use_endpoints_dist, cal_equiv_dist):
     return near_idx.numpy(), near_flip_mask.numpy(), ds_brain_feat.numpy(), ds_brain_feat_equiv.numpy()
 
         
-def center_tractography(input_path, feat_RAS, out_path=None, logger=None, tractography_name=None,save_data=False):
-    """Recenter the tractography to atlas center
-        feat_RAS: [n_fiber, n_point, n_feat]"""
-    HCP_center = np.load(os.path.join(input_path, 'HCP_mass_center.npy'))  # (15(n_point),3(n_feat)) from 100 unrelated HCP subjects (atlas). The calculation function is in func_intra.py
-    test_subject_center = np.mean(feat_RAS, axis=0)
-    displacement = HCP_center - test_subject_center
-    c_feat_RAS = feat_RAS + displacement  # recenter the tractography to HCP atlas center
-    if save_data:
-        recenter_path = os.path.join(out_path, 'recentered_tractography')
-        makepath(recenter_path)
-        feat_RAS_pd = array2vtkPolyData(c_feat_RAS)
-        wma.io.write_polydata(feat_RAS_pd, os.path.join(recenter_path, 'recentered_{}'.format(tractography_name)))
-        # logger.info('Saved recentered tractography to {}'.format(recenter_path))
-    return c_feat_RAS
+# def center_tractography(input_path, feat_RAS, out_path=None, logger=None, tractography_name=None,save_data=False):
+#     """Recenter the tractography to atlas center
+#         feat_RAS: [n_fiber, n_point, n_feat]"""
+#     HCP_center = np.load(os.path.join(input_path, 'HCP_mass_center.npy'))  # (15(n_point),3(n_feat)) from 100 unrelated HCP subjects (atlas). The calculation function is in func_intra.py
+#     test_subject_center = np.mean(feat_RAS, axis=0)
+#     displacement = HCP_center - test_subject_center
+#     c_feat_RAS = feat_RAS + displacement  # recenter the tractography to HCP atlas center
+#     if save_data:
+#         recenter_path = os.path.join(out_path, 'recentered_tractography')
+#         makepath(recenter_path)
+#         feat_RAS_pd = array2vtkPolyData(c_feat_RAS)
+#         wma.io.write_polydata(feat_RAS_pd, os.path.join(recenter_path, 'recentered_{}'.format(tractography_name)))
+#         # logger.info('Saved recentered tractography to {}'.format(recenter_path))
+#     return c_feat_RAS
 
 import logging
 

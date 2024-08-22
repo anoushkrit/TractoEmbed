@@ -64,14 +64,14 @@ class MultiEmbed(nn.Module):
                 new_state_dict[new_key] = value
 
             self.dvae.load_state_dict(new_state_dict)
-            if(args.dVAE=="hyperlocal"):
-                self.dvae_fc1=nn.Linear(4096, 2048)
-                self.dvae_fc2=nn.Linear(2048, 1024)
-                self.dvae_bn1 = nn.BatchNorm1d(2048) 
-            else:
-                self.dvae_fc1=nn.Linear(16384, 4096)
-                self.dvae_fc2=nn.Linear(4096, 1024)
-                self.dvae_bn1 = nn.BatchNorm1d(4096) 
+            # if(args.dVAE=="hyperlocal"):
+            #     self.dvae_fc1=nn.Linear(4096, 2048)
+            #     self.dvae_fc2=nn.Linear(2048, 1024)
+            #     self.dvae_bn1 = nn.BatchNorm1d(2048) 
+            # else:
+            self.dvae_fc1=nn.Linear(16384, 4096)
+            self.dvae_fc2=nn.Linear(4096, 1024)
+            self.dvae_bn1 = nn.BatchNorm1d(4096) 
         
         if(args.use_dvae & args.use_cnn & args.use_pointnet):
             self.fc1 = nn.Linear(2304, 1024) # 2048, 512
