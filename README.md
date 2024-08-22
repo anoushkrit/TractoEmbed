@@ -18,7 +18,6 @@ We propose **TractoEmbed**, a modular multi-level embedding framework that encod
 git clone https://github.com/anoushkrit/TractoEmbed
 cd TractoEmbed/
 ```
-https://github.com/anoushkrit/TractoEmbed
 
 ### Requirements
 
