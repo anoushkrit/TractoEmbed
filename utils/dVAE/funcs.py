@@ -1,4 +1,5 @@
 # import dipy
+#%%
 import os
 import pickle
 import vtk
@@ -8,9 +9,8 @@ import pandas as pd
 import random
 import torch
 from collections import defaultdict
-import whitematteranalysis as wma
-
-
+# import whitematteranalysis as wma
+#%%
 def round_decimal(value, decimal=4):
     """Round to 2 decimal
        0.9652132 to 0.9652"""
@@ -44,7 +44,7 @@ def fix_seed(manualSeed):
     torch.cuda.manual_seed(manualSeed)  # seed for gpu
     torch.cuda.manual_seed_all(manualSeed)  # seed for all gpu
     
-
+#%%
 def obtain_TractFullName():    
     tract_name_full_dict = {
         'AF': 'arcuate fasciculus',  # association
@@ -94,12 +94,12 @@ def obtain_TractFullName():
     return tract_name_full_dict
 
 
-def obtain_TractClusterMapping():
+def obtain_TractClusterMapping(annotation_excel = "/neuro/tractcloud-data/TractCloud-1.0.0/datasets/FiberClusterAnnotation_Updated20230110.xlsx"):
     """The obtained dictionary is {'tract name': ['cluster_xxx','cluster_xxx', ... 'cluster_xxx']}. Cluster index starts from 1."""
     ordered_tract_names = list(obtain_TractFullName().keys()) #obtain_TractFullName: dicitonary of cluster with full name
     ordered_tract_cluster_mapping_dict = {}   # keep the order we like association, projection, commissural, cerebellar, superficial 
     
-    cluster_annotation_pd = pd.read_excel('../datasets/FiberClusterAnnotation_Updated20230110.xlsx')
+    cluster_annotation_pd = pd.read_excel(annotation_excel)
     cluster_tract_mapping = {clu:tra for clu, tra in zip(cluster_annotation_pd['Cluster Index'], cluster_annotation_pd['Final'])}
 
     # only include clusters into the anatomical tracts
@@ -118,6 +118,27 @@ def obtain_TractClusterMapping():
     
     return ordered_tract_cluster_mapping_dict
 
+def get_TractClusterMapping():
+    """The obtained dictionary is {'tract name': ['cluster_xxx','cluster_xxx', ... 'cluster_xxx']}. Cluster index starts from 1."""
+    ordered_tract_names = list(obtain_TractFullName().keys()) #obtain_TractFullName: dicitonary of cluster with full name
+    ordered_tract_cluster_mapping_dict = {}   # keep the order we like association, projection, commissural, cerebellar, superficial 
+    
+    cluster_annotation_pd = pd.read_excel('../datasets/FiberClusterAnnotation_Updated20230110.xlsx')
+    cluster_tract_mapping = {clu:tra for clu, tra in zip(cluster_annotation_pd['Cluster Index'], cluster_annotation_pd['Final'])}
+    tract_cluster_mapping_dict = defaultdict(list)  # {'tract_x': ['cluster_xxx','cluster_xxx']}
+    for key, value in cluster_tract_mapping.items():
+        tract_cluster_mapping_dict[value].append(key)   
+    
+    # sort the tract order in the dictionary and add clusters belong to other tracts
+    all_clusters_lst = list(cluster_annotation_pd['Cluster Index'])
+    clusters_belong_anatomical_tracts_lst = []
+    for tract_name in ordered_tract_names:
+        ordered_tract_cluster_mapping_dict[tract_name] = tract_cluster_mapping_dict[tract_name]
+        clusters_belong_anatomical_tracts_lst.extend(tract_cluster_mapping_dict[tract_name])
+    ordered_tract_cluster_mapping_dict['Other'] = sorted(list(set(all_clusters_lst)-set(clusters_belong_anatomical_tracts_lst))) 
+    return ordered_tract_cluster_mapping_dict
+
+
 
 def cluster2tract_label(lst, ordered_tract_cluster_mapping_dict, output_lst=True):
     """Convert cluster labels to tract labels"""
@@ -125,6 +146,7 @@ def cluster2tract_label(lst, ordered_tract_cluster_mapping_dict, output_lst=True
         array = np.array(lst)
     else:
         array = lst
+    # clus_name_list = [] 
         
     org_array = np.copy(array)   # The original label/pred lst
     
@@ -137,14 +159,17 @@ def cluster2tract_label(lst, ordered_tract_cluster_mapping_dict, output_lst=True
             cluster_idx = int(cluster_name.split('_')[1][2:])-1   # '00031'->30,'00322'->321.  Don't use strip('0'), it will strip 0 in '80' as well.
             array[org_array==cluster_idx] = idx_tract  # plausible tract, starts from 0
             array[org_array==cluster_idx+800] = num_tracts-1  # implausible tract (outlier)
-    
+            array[org_array==cluster_idx+1600] = 99
+            # clus_name_list[org_array==cluster_idx] = list(ordered_tract_cluster_mapping_dict.keys())[idx_tract]  # ordered_tract_cluster_mapping_dict.keys()
     if output_lst:   # when array is 1D
         new_lst = list(array)
+
     else:           # We could get array with 2D/3D/nD shape, e.g., (num_fiber_per_brian, num_points_per_fiber)
         new_lst = array
-    
-    return new_lst       
-
+        # clus_name_list = clus_name_list[0]
+    return new_lst
+    # return new_lst, clus_name_list     
+#%%
 
 def get_rot_axi(axis_name):
     if axis_name == 'LR':

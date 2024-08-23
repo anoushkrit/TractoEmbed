@@ -1,4 +1,4 @@
-from utils_dVAE import registry
+from utils.dVAE import registry
 
 
 MODELS = registry.Registry('models')

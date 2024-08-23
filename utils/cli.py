@@ -56,21 +56,11 @@ def create_parser():
     parser.add_argument('--save_args_only', default=False, action='store_true', help='Save args only, not perform training')
     parser.add_argument('--cal_equiv_dist', default=False, action='store_true', help='Calculate equivalent distance for pairwise distance matrix')
     parser.add_argument('--recenter', default=False, action='store_true', help='Recenter the data use the center of mass')
-    parser.add_argument('--include_org_data', default=False, action='store_true', help='Include original data when augmenting data')
-    # parser.add_argument('--npps', type=int, default=30, help='Number of points per streamline')
+    # parser.add_argument('--include_org_data', default=False, action='store_true', help='Include original data when augmenting data')
     parser.add_argument('--num_features', type=int, default=3, help='Number of input features')
     parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
-    # parser.add_argument('--channels', type=int, default=3, help='channels in claasification')
-    # parser.add_argument('--classify_inputs', type=str, default='[1024,512]', help='Convolutional Layers dimensions' )
     
     return parser
-
-
-def adaptive_args(args):
-    if args.trans_dis == 0:
-        args.recenter = False
-        
-    return args
 
 
 def load_args(path, args):

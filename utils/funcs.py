@@ -101,7 +101,7 @@ def obtain_TractClusterMapping():
     ordered_tract_names = list(obtain_TractFullName().keys()) #obtain_TractFullName: dicitonary of cluster with full name
     ordered_tract_cluster_mapping_dict = {}   # keep the order we like association, projection, commissural, cerebellar, superficial 
     
-    cluster_annotation_pd = pd.read_excel('../datasets/FiberClusterAnnotation_Updated20230110.xlsx')
+    cluster_annotation_pd = pd.read_excel('../dataloader/FiberClusterAnnotation_Updated20230110.xlsx')
     cluster_tract_mapping = {clu:tra for clu, tra in zip(cluster_annotation_pd['Cluster Index'], cluster_annotation_pd['Final'])}
 
     # only include clusters into the anatomical tracts

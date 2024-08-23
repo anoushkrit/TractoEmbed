@@ -3,11 +3,11 @@ import torch
 import torch.nn.functional as F
 from knn_cuda import KNN
 from build_TC import MODELS
-from utils_dVAE import misc
-from utils_dVAE.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
+from utils.dVAE import misc
+from utils.dVAE.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
 # from extensions.emd import emd
-from utils_dVAE.checkpoint import get_missing_parameters_message, get_unexpected_parameters_message
-from utils_dVAE.logger import *
+from utils.dVAE.checkpoint import get_missing_parameters_message, get_unexpected_parameters_message
+from utils.dVAE.logger import *
 
 from knn_cuda import KNN
 knn = KNN(k=4, transpose_mode=False)

@@ -1,0 +1,10 @@
+NAME: LocalFeatLoader
+data_path: /scratch/jankita.scee.iitmandi/TractCloud/TrainData_800clu800ol/
+k_local: 5
+k_global: 0
+interpolate: 64
+cal_equiv_dist: False
+use_endpoints_dist: False
+rough_num_fiber_each_iter: 10000
+k_ds_rate: 0.1
+shuffle_streamlines: False

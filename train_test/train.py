@@ -14,19 +14,25 @@ import torch.optim as optim
 import torch.utils.data
 import torch.nn.functional as F
 
-from data_loader.data_loader import unrelatedHCP_PatchData
+from dataloader.dataloader import HCP_Data
 from models.multi_embed_concat import MultiEmbed
-# from models.dgcnn import tract_DGCNN_cls
 from utils.logger import create_logger
 from utils.metrics_plots import classify_report, process_curves, calculate_acc_prec_recall_f1, best_swap, save_best_weights
 from utils.funcs import round_decimal, unify_path, makepath, fix_seed, obtain_TractClusterMapping, cluster2tract_label, save_info_feat, str2num
-from utils.cli import create_parser, save_args, adaptive_args
+from utils.cli import create_parser, save_args
 from tqdm import tqdm
 import torch.nn as nn
 
 
 class FocalLoss(nn.Module):
+    '''
+    Robust loss function for training deep learning models, 
+    especially in scenarios where there is a significant class imbalance.
 
+    Initialization:
+        gamma(float, default=0):  focusing parameter
+        eps(float, default=1e-7):  small value added to the log to prevent numerical instability
+    '''
     def __init__(self, gamma=0, eps=1e-7):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
@@ -40,10 +46,11 @@ class FocalLoss(nn.Module):
         return loss.mean()
 
 def load_datasets(eval_split, args, test=False, logger=None):
-    """load train and validation data"""
+    '''load train and validation data'''
+    
     # load feature and label data
-    if not test:   #For the training
-        train_dataset = unrelatedHCP_PatchData(
+    if not test:            #For the training
+        train_dataset = HCP_Data(
                 root=args.input_path,
                 out_path=args.out_path,
                 logger=logger,
@@ -52,15 +59,13 @@ def load_datasets(eval_split, args, test=False, logger=None):
                 num_point_per_fiber=args.num_point_per_fiber,
                 use_tracts_training=args.use_tracts_training,
                 k=args.k,
-                k_global=args.k_global,
                 cal_equiv_dist=args.cal_equiv_dist,
                 k_ds_rate=args.k_ds_rate,
-                include_org_data=args.include_org_data,
                 sample_pts=args.sample_pts)
     else:
         train_dataset = None
         
-    eval_dataset = unrelatedHCP_PatchData(
+    eval_dataset = HCP_Data(
         root=args.input_path,
         out_path=args.out_path,
         logger=logger,
@@ -69,16 +74,15 @@ def load_datasets(eval_split, args, test=False, logger=None):
         num_point_per_fiber=args.num_point_per_fiber,
         use_tracts_training=args.use_tracts_training,
         k=args.k,
-        k_global=args.k_global,
         cal_equiv_dist=args.cal_equiv_dist,
-        k_ds_rate=args.k_ds_rate,
-        include_org_data=args.include_org_data)
+        k_ds_rate=args.k_ds_rate)
 
     return train_dataset, eval_dataset
 
 
 def load_batch_data():
-    """load train and val batch data"""
+    '''load train and val batch data'''
+
     eval_state='val'
     train_dataset, val_dataset = load_datasets(eval_split=eval_state, args=args, test=False, logger=logger)
     train_loader = torch.utils.data.DataLoader(
@@ -107,32 +111,21 @@ def load_batch_data():
         label_names = train_dataset.label_names
     label_names_h5 = h5py.File(os.path.join(args.out_path, 'label_names.h5'), 'w')
     label_names_h5['y_names'] = label_names
-    logger.info('The label names are: {}'.format(str(label_names)))
+    # logger.info('The label names are: {}'.format(str(label_names)))
     num_classes = len(np.unique(label_names))
     logger.info('The number of classes is:{}'.format(num_classes))
 
-    # global feature
-    # train_global_feat = train_dataset.global_feat
-    # val_global_feat = val_dataset.global_feat
-    
     return train_loader, val_loader, label_names, num_classes, train_data_size, val_data_size, eval_state
 
 
 def load_model(args, num_classes, device, test=False):
-    # model setting 
-    # if args.model_name == 'dgcnn':
-    #     DL_model = tract_DGCNN_cls(num_classes,args,device)
-    # if args.model_name == 'pointnet':
-    DL_model = MultiEmbed(args,k=args.k, k_global=args.k_global, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
+    DL_model = MultiEmbed(args,k=args.k, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
         
-    # load weights when testing
     if test:
         weight = torch.load(args.weight_path)  
-        # weight = torch.load(args.weight_path, map_location=torch.device("cpu")) 
-        print(args.weight_path)
+        # print(args.weight_path)
         
         DL_model.load_state_dict(weight)
-            
     DL_model.cuda()
     # DL_model.to(device)
 
@@ -147,6 +140,7 @@ def load_settings(DL_model):
         optimizer = optim.SGD(DL_model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     else:
         raise ValueError('Please input valid optimizers Adam | SGD')
+    
     # schedulers
     if args.scheduler == 'step':
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.decay_factor)
@@ -154,7 +148,6 @@ def load_settings(DL_model):
         scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.T_0, T_mult=args.T_mult)
     elif args.scheduler == 'reduceonplateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min',factor=0.6,patience=1,threshold=0.001,threshold_mode='abs')
-    
     else:
         raise ValueError('Please input valid schedulers step | wucd')
     
@@ -162,53 +155,22 @@ def load_settings(DL_model):
 
 
 def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, predicted_lst, args, device, num_classes, epoch=-1, num_batch=-1):
-    # if state == 'test_realdata':
-    #     points, klocal_feat_set = data
-    # else:
-        # points [B, N_point, 3], label [B,1](cls) or [B,N_point](seg), [B, n_point, 3, k], [B]
-    points, label, klocal_feat_set, new_subidx,feat_ras_cnn = data 
-    # if state == 'train':
-    #     global_feat = torch.from_numpy(train_global_feat)
-    # elif state == 'val' or state == 'test' or state =='test_realdata':
-    #     global_feat = torch.from_numpy(eval_global_feat)
-
-        
+    points, label, cluster_data_set, new_subidx,feat_ras_cnn = data      
     num_fiber = points.shape[0]
-    # num_point_per_fiber = points.shape[1]
-    # label
-    # if state != 'test_realdata':
-    label = label[:,0]  # [B,1] to [B]   
-    # points
-    points = points.transpose(2, 1)  # points [B, 3, N_point]
-    # local feat
-    klocal_feat_set = klocal_feat_set.transpose(2,1)  # [B,3,N_point,k]
-    #     # global feat
-    # if state == 'test_realdata': 
-    #     kglobal_point_set = global_feat.repeat(num_fiber,1,1,1).transpose(2,1)  # [B,3,N_point,k_global]
-    #     new_subidx=torch.zeros(num_fiber).long() 
-    # else:
-    #     new_subidx = new_subidx[:,0]  # [B,1] to [B]
-    #     kglobal_point_set = global_feat.transpose(2,1)  # [num_subject*num_aug,3,N_point,k_global]
-    #     kglobal_point_set = kglobal_point_set[new_subidx, ...]  # [B,3,N_point,k_global].
+    label = label[:,0]      # [B,1] to [B]   
+    # Streamline data
+    points = points.transpose(2, 1)  # streamlines [B, 3, N_point]
+    #Cluster data
+    cluster_data_set = cluster_data_set.transpose(2,1)  # [B,3,N_sampling_points]
     
-    # concat knn and random feat to get info feat
     if args.k == 0 :
         info_point_set = torch.Tensor([0])
     elif args.k > 0 :
-        info_point_set = klocal_feat_set# [B,3,N_point]
+        info_point_set = cluster_data_set       # [B,3,N_sampling_points]
     else:
         raise ValueError('Invalid k and k sparse values')
-    if (args.k>0)  and (idx_data==0 and epoch==1):
-        # if state != 'test_realdata': 
-        start_idx = 0
-        end_idx = 100
-        org_info_feat_save_folder = os.path.join(args.out_path,'org_info_feat_vtk',state)
-            # makepath(org_info_feat_save_folder)
-            # save_info_feat(points, info_point_set, new_subidx, start_idx, end_idx, args.aug_times, args.k, 
-                        # args.k_global, args.k_ds_rate, org_info_feat_save_folder)
-    # if state == 'test_realdata':
-    #     points, info_point_set = points.cuda(), info_point_set.cuda()
-    # else:
+    
+
     points, label, info_point_set,feat_ras_cnn = points.cuda(), label.cuda(), info_point_set.cuda(),feat_ras_cnn.cuda()
     
     if state == 'train':
@@ -216,26 +178,17 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
         net = net.train()
     else:
         net = net.eval() 
-    # get desired results for pred -- [B,N_point,Cls] for seg, [B,Cls] for cls
-    # if args.model_name == 'dgcnn':
-    #     pred = net(points, info_point_set)   
-    # elif args.model_name == 'pointnet':
+
     pred,_,_= net(points, info_point_set,feat_ras_cnn)
-    # else:
-    #     raise ValueError('Please input valid model name dgcnn | pointnet')
     # print("Pred shape",pred.shape)
     
-    pred = pred.view(-1, num_classes)  # seg (B,N_point,Cls) -> (B*N_point,Cls); cls (B,Cls) -> (B,Cls)
-    # print("Pred shape",pred.shape)
-    # pred=pred.permute(1,0)
-    # print("Pred shape after permute:", pred.shape)
+    pred = pred.view(-1, num_classes)       # seg (B,N_point,Cls) -> (B*N_point,Cls); cls (B,Cls) -> (B,Cls)
     _, pred_idx = torch.max(pred, dim=1)
-    # if state != 'test_realdata':
     label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
     label = label.to(pred.device)
-    # focal_loss = FocalLoss().cuda()
-    # loss = focal_loss(pred, label)
-    loss=F.nll_loss(pred, label)
+    focal_loss = FocalLoss().cuda()
+    loss = focal_loss(pred, label)
+    # loss=F.nll_loss(pred, label)
 
     if state == 'train':
         # print("Shapes of pred and labels", len(pred), len(label))
@@ -458,7 +411,7 @@ if __name__ == '__main__':
     print("Random Seed: ", args.manualSeed)
     fix_seed(args.manualSeed)
     # adaptively change the args
-    args = adaptive_args(args)
+    # args = adaptive_args(args)
     # convert str to num
     # args.rot_ang_lst = str2num(args.rot_ang_lst)
     # args.scale_ratio_range = str2num(args.scale_ratio_range)

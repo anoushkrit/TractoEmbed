@@ -5,8 +5,8 @@ import torch
 import numpy as np
 import pickle
 import os
-import whitematteranalysis as wma
-from pytorch3d.transforms import RotateAxisAngle, Scale, Translate
+# import whitematteranalysis as wma
+# from pytorch3d.transforms import RotateAxisAngle, Scale, Translate
 from scipy.interpolate import CubicSpline
 from dipy.segment.fss import FastStreamlineSearch, nearest_from_matrix_row
 from nibabel.streamlines.array_sequence import ArraySequence
@@ -38,9 +38,9 @@ def bicubic_interpolate(labels, subject_ids, features,ras_feature):
     return np.array(labels), np.array(subject_ids), np.array(features),np.array(ras_feature)
 
 
-class unrelatedHCP_PatchData(data.Dataset):
+class HCP_Data(data.Dataset):
     def __init__(self, root, out_path, logger, split='train', num_fiber_per_brain=10000,num_point_per_fiber=15, 
-                 use_tracts_training=False, k=0, k_global=0, cal_equiv_dist=False, k_ds_rate=0.1, include_org_data=False,sample_pts=150):        
+                 use_tracts_training=False, k=0, cal_equiv_dist=False, k_ds_rate=0.1, sample_pts=150):        
         self.root = root
         self.out_path = out_path
         self.split = split
@@ -49,7 +49,7 @@ class unrelatedHCP_PatchData(data.Dataset):
         self.num_point = num_point_per_fiber
         self.use_tracts_training = use_tracts_training
         self.k = k
-        self.k_global = k_global
+        # self.k_global = k_global
         self.sample_points=sample_pts
         # Augmentations, which can be replaced by the spherical coordinates
         # self.rot_ang_lst = rot_ang_lst
@@ -61,7 +61,7 @@ class unrelatedHCP_PatchData(data.Dataset):
 
         self.k_ds_rate=k_ds_rate  
         # self.recenter = recenter
-        self.include_org_data = include_org_data
+        # self.include_org_data = include_org_data
         
         # data save for debugging
         self.save_aug_data = True
@@ -76,11 +76,11 @@ class unrelatedHCP_PatchData(data.Dataset):
         with open(os.path.join(root, '{}.pickle'.format(split)), 'rb') as file:
             # Load the data from the file
             data_dict = pickle.load(file)
-        self.features = data_dict['feat']
-        self.labels = data_dict['label']
+        self.features = data_dict['feat'][:100]
+        self.labels = data_dict['label'][:100]
         self.label_names = data_dict['label_name']
-        self.subject_ids = data_dict['subject_id']
-        self.ras_feat = data_dict['cnn_embed'].numpy()
+        self.subject_ids = data_dict['subject_id'][:100]
+        self.ras_feat = data_dict['cnn_embed'].numpy()[:100]
         
         # bicubic interpolation
         self.labels, self.subject_ids, self.features,self.ras_feat = bicubic_interpolate(self.labels, self.subject_ids, self.features,self.ras_feat)

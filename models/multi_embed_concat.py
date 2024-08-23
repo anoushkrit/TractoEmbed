@@ -14,20 +14,20 @@ import torch.utils.data
 from torch.autograd import Variable
 import numpy as np
 import torch.nn.functional as F
-from dvae_TC import DiscreteVAE
+# from dvae_TC import DiscreteVAE
 from collections import namedtuple
 from pointnet import PointNetfeat
 
 class MultiEmbed(nn.Module):
-    def __init__(self, args, k=0, k_global=0, num_classes=2, feature_transform=False, first_feature_transform=False):
+    def __init__(self, args, k=0, num_classes=2, feature_transform=False, first_feature_transform=False):
         super(MultiEmbed, self).__init__()
         self.feature_transform = feature_transform
         self.first_feature_transform = first_feature_transform
         self.k = k
-        self.k_global = k_global
+        # self.k_global = k_global
         self.args=args
         if(args.use_pointnet):
-            self.feat = PointNetfeat( args = args, k=k, k_global=k_global, global_feat=True, feature_transform=feature_transform, first_feature_transform=first_feature_transform)
+            self.feat = PointNetfeat( args = args, k=k, global_feat=True, feature_transform=feature_transform, first_feature_transform=first_feature_transform)
         # if(args.dVAE=="gold"):
         #     config_path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/config.yaml"
         #     path="/scratch/jankita.scee.iitmandi/TractCloud/dvae_local/gold/ckpt-best.pth"
@@ -150,7 +150,7 @@ class MultiEmbed(nn.Module):
             y=self.dvae_fc2(y)
         if(self.args.use_pointnet):
             # print("pointnet true")
-            x, trans, trans_feat = self.feat(x, info_point_set)
+            x, trans, trans_feat = self.feat(info_point_set)
         else:
             trans, trans_feat=None,None
 

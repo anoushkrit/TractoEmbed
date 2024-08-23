@@ -91,7 +91,7 @@ class STNkd(nn.Module):
         return x
 
 class PointNetfeat(nn.Module):
-    def __init__(self, args, k=0, k_global=0, global_feat = True, feature_transform = False, first_feature_transform=False):
+    def __init__(self, args, k=0, global_feat = True, feature_transform = False, first_feature_transform=False):
         super(PointNetfeat, self).__init__()
         self.num_features = args.num_features
         self.batch_size = args.batch_size
@@ -111,7 +111,7 @@ class PointNetfeat(nn.Module):
         self.first_feature_transform = first_feature_transform
         self.feature_transform = feature_transform
         self.k = k
-        self.k_global = k_global
+        # self.k_global = k_global
         if self.first_feature_transform:
             self.stn = STN3d()
         if self.feature_transform:
@@ -119,12 +119,12 @@ class PointNetfeat(nn.Module):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    def forward(self, x, info_point_set ):
-        if not x.is_cuda: 
-            x.cuda()
+    def forward(self, x ):
+        # if not x.is_cuda: 
+        #     x.cuda()
 
         n_pts = x.size()[2]
-        
+        print(x.shape)
         if self.first_feature_transform:
             trans = self.stn(x) 
             x = x.transpose(2, 1)
@@ -133,7 +133,6 @@ class PointNetfeat(nn.Module):
         else:
             trans = None
         
-        x=info_point_set
         # x = torch.cat((x,info_point_set),dim=2)   #  (num_fiber, 3, num_points)-> (num_fiber, 3, num_points+1024)
         x = F.relu(self.bn1(self.conv1(x)))      # (num_fiber, 3*2, num_points, fiber_k) -> (num_fiber, 64, num_points, fiber_k)
             

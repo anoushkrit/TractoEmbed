@@ -56,7 +56,7 @@ The directory structure for the dataset is as follows:
 
 ```bash
 ./  TractoEmbed
-├── datasets
+├── dataset
 │   ├── train.pickle
 │   ├── val.pickle
 │   ├── test.pickle

@@ -2,20 +2,29 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from knn_cuda import KNN
-from pointnet2_ops import pointnet2_utils
 from models.dVAE.build_TC import MODELS
 from utils.dVAE import misc
-from utils.dVAE.extensions.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
-# from extensions.emd import emd
+from utils.dVAEextensions.chamfer_dist import ChamferDistanceL1, ChamferDistanceL2
 from utils.dVAE.checkpoint import get_missing_parameters_message, get_unexpected_parameters_message
 from utils.dVAE.logger import *
-import numpy as np
-import matplotlib.pyplot as plt
+
 from knn_cuda import KNN
-import gc
-import plotly.graph_objects as go
 knn = KNN(k=4, transpose_mode=False)
 
+def load_state_dicts(checkpoint_file, map_location=None, **kwargs):
+    """ Load torch items from saved state_dictionaries"""
+    if map_location is None:
+        checkpoint = torch.load(checkpoint_file)
+    else:
+        checkpoint = torch.load(checkpoint_file, map_location=map_location)
+
+    for key, value in kwargs.items():
+        value.load_state_dict(checkpoint[key])
+
+    epoch = checkpoint.get('epoch')
+    if epoch:
+        return epoch
+    
 class DGCNN(nn.Module):
     def __init__(self, encoder_channel, output_channel):
         super().__init__()
@@ -48,6 +57,7 @@ class DGCNN(nn.Module):
                                 nn.GroupNorm(4, output_channel),
                                 nn.LeakyReLU(negative_slope=0.2)
                                 )
+
     @staticmethod
     def get_graph_feature(coor_q, x_q, coor_k, x_k):
 
@@ -146,23 +156,19 @@ def square_distance(src, dst):
     return dist    
 
 class Group(nn.Module):
-    # Is this module used for grouping points? 
-    def __init__(self, config):
+    def __init__(self, num_group, group_size):
         super().__init__()
-        self.config = config
-        self.num_group = config.num_group
-        self.group_size = config.group_size
-        self.task = config.task
+        self.num_group = num_group
+        self.group_size = group_size
         # self.knn = KNN(k=self.group_size, transpose_mode=True)
-    
-    def fps_knn(self, xyz):
 
-        """
-        Takes in a point cloud and returns num_groups, k, which are point cloud patches
-        xyz: (b, n, 3)
-        neighborhood: (b, num_group, group_size, 3)
-        center: (b, num_group, 3)
-        """
+    def forward(self, xyz):
+        '''
+            input: B N 3
+            ---------------------------
+            output: B G M 3
+            center : B G 3
+        '''
         batch_size, num_points, _ = xyz.shape
         # fps the centers out
         center = misc.fps(xyz, self.num_group) # B G 3
@@ -176,159 +182,41 @@ class Group(nn.Module):
         idx = idx.view(-1)
         neighborhood = xyz.view(batch_size * num_points, -1)[idx, :]
         neighborhood = neighborhood.view(batch_size, self.num_group, self.group_size, 3).contiguous()
+        # normalize
         neighborhood = neighborhood - center.unsqueeze(2)
-        return neighborhood, center 
-    
-    def streamline_patch(self, xyz):
-        """xyz.shape = B, S*N, 3"""
-
-        """xyz: input point cloud (B, N ,3); B: batch size, N: number of points, 3; features 
-        returns: 
-        neighborhood: (B, num_groups, group_size, 3)
-        center: (B, num_group, 3)
-        number of points >= group_size* num_groups        """
-        B, pts, _ = xyz.shape
-        pts_per_streamline = self.group_size # interpolation length (40 points)
-        """ local neighbors might be more than self.num_group
-            we will be selecting randomly num_group from all neighbors"""
-        num_local_neighbours = pts//pts_per_streamline # analogous to total_streamlines
-
-        assert num_local_neighbours >= self.num_group
-        assert type(num_local_neighbours) == int
-
-        streamlines = xyz.reshape(B,num_local_neighbours,pts_per_streamline,3) # to get back all the streamlines array 
-
-        """streamlines.shape = B, S, N, 3"""
-        mean_positions = torch.mean(streamlines, dim=2) # Barycenter of streamline or centroid of streamline
-        # TODO: dipy or scipy centroid or center of mass of the streamlines, which is ON the streamline
-
-        center = torch.zeros((streamlines.shape[0], streamlines.shape[1], streamlines.shape[3]), device=streamlines.device)
-        
-        """finding closest point on streamline to the centroid of streamline"""
-        # TODO: torcc or np.vmap operation to remove this for loop, to find center of each streamline array
-        for i, batch in enumerate(streamlines):
-            for j, streamline in enumerate(batch):
-                position = mean_positions[i, j]
-                # distances = torch.norm(streamline - position, dim=1)
-                # center[i, j] = streamline[torch.argmin(distances)]  # center = point closest to centroid on streamline
-                center[i,j] = position  # center = centroid of streamline
-        streamlines = streamlines - center.unsqueeze(2)
-
-        # To keep the main streamline at a certain location (FIXED) in the token_sequence fed to PointBERT 
-        if self.config.fix_main_streamline_index:
-            main_streamline_idx = self.config.main_streamline_idx 
-        else:
-            main_streamline_idx = torch.randint(0, self.num_group, (1,)).item()
-
-
-        random_indices = torch.randperm(num_local_neighbours - 1)[:self.num_group - 1] + 1
-        # Combine the main streamline index with the random indices
-        before_main = random_indices[:main_streamline_idx]
-        after_main = random_indices[main_streamline_idx:]
-        indices = torch.cat([before_main, torch.tensor([0]), after_main])
-
-        # shuffle streamlines inside a local neighbour cluster, which doesn't affect labels. 
-        # Just for permutation invariance reasons
-        if self.config.shuffle_point_inside_streamline:
-            point_order = torch.randperm(self.group_size)
-        else:
-            point_order = torch.arange(self.group_size)
-        if self.config.shuffle_streamline:
-            streamlines = streamlines[:,indices,:,:]
-            return streamlines[:,:,point_order,:], center[:,indices,:]
-        else:
-            # print(center.shape)
-            streamlines = streamlines[:,:self.num_group,:,:]
-            return streamlines[:,:,point_order,:], center[:,:self.num_group,:]
-    
-    def tracklet(self, xyz): 
-        return 
-    
-
-    def forward(self, xyz):
-        '''
-            input: B N 3
-            ---------------------------
-            output: B G M 3
-            center : B G 3
-        '''
-        if self.task =='streamline_patch':
-            return self.streamline_patch(xyz)
-        if self.task =='fps_knn':
-            return self.fps_knn(xyz)
-        #TODO: else point cloud as patch 
-        #TODO: else tracklet as patch
-        # return neighborhood, center
+        return neighborhood, center
 
 class Encoder(nn.Module):
     def __init__(self, encoder_channel):
         super().__init__()
         self.encoder_channel = encoder_channel
         self.first_conv = nn.Sequential(
-            nn.Conv1d(3, 128, 1), # (input channels, output channels, kernel size)
+            nn.Conv1d(3, 128, 1),
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
-            nn.Conv1d(128, 256, 1) # output dims: 256
+            nn.Conv1d(128, 256, 1)
         )
         self.second_conv = nn.Sequential(
             nn.Conv1d(512, 512, 1),
             nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
-            nn.Conv1d(512, self.encoder_channel, 1) # output dims: encoder_channel
-        ) 
+            nn.Conv1d(512, self.encoder_channel, 1)
+        )
     def forward(self, point_groups):
         '''
             point_groups : B G N 3
             -----------------
             feature_global : B G C
         '''
-        bs, g, n , _ = point_groups.shape # batches, groups, number of points, 3 OR features per point
+        bs, g, n , _ = point_groups.shape
         point_groups = point_groups.reshape(bs * g, n, 3)
         # encoder
         feature = self.first_conv(point_groups.transpose(2,1))  # BG 256 n
         feature_global = torch.max(feature,dim=2,keepdim=True)[0]  # BG 256 1
         feature = torch.cat([feature_global.expand(-1,-1,n), feature], dim=1)# BG 512 n
-        # concatenating global features and group wise features
-        
-        # applying convolution on both global and local features
-        feature = self.second_conv(feature) # BG enc_chnl n
-        feature_global = torch.max(feature, dim=2, keepdim=False)[0] # BG enc_chnl
-        # maxpooiling results in a global feature
+        feature = self.second_conv(feature) # BG 1024 n
+        feature_global = torch.max(feature, dim=2, keepdim=False)[0] # BG 1024
         return feature_global.reshape(bs, g, self.encoder_channel)
-    
-
-# class PointNetEncoder(nn.Module):
-#     def __init__(self, encoder_channel):
-#         super().__init__()
-#         self.encoder_channel = encoder_channel
-#         self.first_conv = nn.Sequential(
-#             nn.Conv1d(3, 128, 1),
-#             nn.BatchNorm1d(128),
-#             nn.ReLU(inplace=True),
-#             nn.Conv1d(128, 256, 1)
-#         )
-#         self.second_conv = nn.Sequential(
-#             nn.Conv1d(512, 512, 1),
-#             nn.BatchNorm1d(512),
-#             nn.ReLU(inplace=True),
-#             nn.Conv1d(512, self.encoder_channel, 1)
-#         )
-#     def forward(self, point_groups):
-#         '''
-#             point_groups : B G N 3
-#             -----------------
-#             feature_global : B G C
-#         '''
-#         bs, g, n , _ = point_groups.shape
-#         point_groups = point_groups.reshape(bs * g, n, 3)
-#         # encoder
-#         feature = self.first_conv(point_groups.transpose(2,1))  # BG 256 n
-#         feature_global = torch.max(feature,dim=2,keepdim=True)[0]  # BG 256 1
-#         feature = torch.cat([feature_global.expand(-1,-1,n), feature], dim=1)# BG 512 n
-#         feature = self.second_conv(feature) # BG enc_chnl n
-#         feature_global = torch.max(feature, dim=2, keepdim=False)[0] # BG enc_chnl
-#         return feature_global.reshape(bs, g, self.encoder_channel)
-    
 
 class Decoder(nn.Module):
     def __init__(self, encoder_channel, num_fine):
@@ -345,7 +233,6 @@ class Decoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(1024, 3 * self.num_coarse)
         )
-
         self.final_conv = nn.Sequential(
             nn.Conv1d(encoder_channel + 3 + 2, 512, 1),
             nn.BatchNorm1d(512),
@@ -355,10 +242,11 @@ class Decoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv1d(512, 3, 1)
         )
-
         a = torch.linspace(-0.05, 0.05, steps=self.grid_size, dtype=torch.float).view(1, self.grid_size).expand(self.grid_size, self.grid_size).reshape(1, -1)
         b = torch.linspace(-0.05, 0.05, steps=self.grid_size, dtype=torch.float).view(self.grid_size, 1).expand(self.grid_size, self.grid_size).reshape(1, -1)
         self.folding_seed = torch.cat([a, b], dim=0).view(1, 2, self.grid_size ** 2) # 1 2 S
+
+
     def forward(self, feature_global):
         '''
             feature_global : B G C
@@ -389,20 +277,21 @@ class Decoder(nn.Module):
         coarse = coarse.reshape(bs, g, self.num_coarse, 3)
         return coarse, fine
 
+
 @MODELS.register_module()
 class DiscreteVAE(nn.Module):
     def __init__(self, config, **kwargs):
         super().__init__()
-        self.group_size = config.group.group_size
-        self.num_group = config.group.num_group
+        self.group_size = config.group_size
+        self.num_group = config.num_group
         self.encoder_dims = config.encoder_dims
         self.tokens_dims = config.tokens_dims
-        self.config = config
 
         self.decoder_dims = config.decoder_dims
         self.num_tokens = config.num_tokens
 
-        self.group_divider = Group(config.group)
+        
+        self.group_divider = Group(num_group = self.num_group, group_size = self.group_size)
         self.encoder = Encoder(encoder_channel = self.encoder_dims)
         self.dgcnn_1 = DGCNN(encoder_channel = self.encoder_dims, output_channel = self.num_tokens)
         self.codebook = nn.Parameter(torch.randn(self.num_tokens, self.tokens_dims))
@@ -411,25 +300,8 @@ class DiscreteVAE(nn.Module):
         self.decoder = Decoder(encoder_channel = self.decoder_dims, num_fine = self.group_size)
         self.build_loss_func()
 
-    def get_streamline_and_center(self, inp):
-        B, _, _ = inp.shape
-        local_neighbours = self.config.local_neighbours
-        pts_per_streamline = self.config.points_per_streamline
-        streamlines = inp.reshape(B,local_neighbours,pts_per_streamline,3)
-
-        """streamlines.shape = B, S, N, 3"""
-        mean_positions = torch.mean(streamlines, dim=2) 
-        # print(streamlines.shape)
-        center = torch.zeros((streamlines.shape[0], streamlines.shape[1], streamlines.shape[3]), device=streamlines.device)
         
-        for i, batch in enumerate(streamlines):
-            for j, streamline in enumerate(batch):
-                position = mean_positions[i, j]
-                distances = torch.norm(streamline - position, dim=1)
-                center[i, j] = streamline[torch.argmin(distances)]
-
-        return streamlines, center
-    
+        
     def build_loss_func(self):
         self.loss_func_cdl1 = ChamferDistanceL1().cuda()
         self.loss_func_cdl2 = ChamferDistanceL2().cuda()
@@ -466,66 +338,47 @@ class DiscreteVAE(nn.Module):
         return loss_recon, loss_klv
 
 
-    def plott(self,streamlines, points):
-        streamlines_cpu = streamlines.cpu().numpy()
-        points_cpu = points.cpu().numpy()
-        num_streamlines = len(streamlines)
-        # Create a Plotly figure
-        random_number = torch.randint(0, 101, (1,)).item()
-        fig = go.Figure()
-
-        # Plot each streamline
-        for i in range(num_streamlines):
-            fig.add_trace(go.Scatter3d(
-                x=streamlines_cpu[i, :, 0],
-                y=streamlines_cpu[i, :, 1],
-                z=streamlines_cpu[i, :, 2],
-                mode='markers',
-                marker=dict(size=1.5, color = i),
-                name=f'Cluster {i+1}'
-            ))
-        fig.add_trace(go.Scatter3d(
-            x=points_cpu[:, 0],
-            y=points_cpu[:, 1],
-            z=points_cpu[:, 2],
-            mode='markers',
-            marker=dict(size=5, color='red'),
-            name='Points'
-        ))
-        # Update layout
-        fig.update_layout(
-            scene=dict(
-                xaxis_title='X Axis',
-                yaxis_title='Y Axis',
-                zaxis_title='Z Axis'
-            ),
-            title='3D Streamlines with Points'
-        )
-
-        # Save the plot as an interactive HTML file
-        fig.write_html(f"stream_plot/3d_streamlines{random_number}.html")
     def forward(self, inp, temperature = 1., hard = False, **kwargs):
-
-        neighborhood, center = self.group_divider(inp) # B G S 3 , B G 3
-
-        # self.plott(neighborhood[0],center[0])
-
+        neighborhood, center = self.group_divider(inp)
+        # print(neighborhood.shape)
+        # print('n')
+        # print(center.shape)
         logits = self.encoder(neighborhood)   #  B G C
+        # print('\n')
+        # print(logits.shape)
+        # print('\n')
         logits = self.dgcnn_1(logits, center) #  B G N
-
+        # print(logits.shape)
+        # print(logits[0])
+        # print('\n')
         soft_one_hot = F.gumbel_softmax(logits, tau = temperature, dim = 2, hard = hard) # B G N
         sampled = torch.einsum('b g n, n c -> b g c', soft_one_hot, self.codebook) # B G C
-
         feature = self.dgcnn_2(sampled, center)
-        coarse, fine = self.decoder(feature)
-
-        with torch.no_grad():
-            whole_fine = (fine + center.unsqueeze(2)).reshape(inp.size(0), -1, 3)
-            whole_coarse = (coarse + center.unsqueeze(2)).reshape(inp.size(0), -1, 3)
-
-        assert fine.size(2) == self.group_size
-        ret = (whole_coarse, whole_fine, coarse, fine, neighborhood, logits)
-        return ret
-        
+        # # print('\n')
+        # coarse, fine = self.decoder(feature)
 
 
+        # with torch.no_grad():
+        #     whole_fine = (fine + center.unsqueeze(2)).reshape(inp.size(0), -1, 3)
+        #     whole_coarse = (coarse + center.unsqueeze(2)).reshape(inp.size(0), -1, 3)
+
+        # assert fine.size(2) == self.group_size
+        # ret = (whole_coarse, whole_fine, coarse, fine, neighborhood, logits)
+        return feature
+    
+    def latent_shape(self, inp, temperature = 1., hard = False, **kwargs):
+        neighborhood, center = self.group_divider(inp)
+        logits = self.encoder(neighborhood)   #  B G C
+        logits = self.dgcnn_1(logits, center) #  B G N
+        soft_one_hot = F.gumbel_softmax(logits, tau = temperature, dim = 2, hard = hard) # B G N
+        sampled = torch.einsum('b g n, n c -> b g c', soft_one_hot, self.codebook) # B G C
+        feature = self.dgcnn_2(sampled, center) # P 256
+
+        return feature
+    
+    def get_labels(self, inp, **kwargs):
+        neighborhood, center = self.group_divider(inp)
+        logits = self.encoder(neighborhood)   #  B G C
+        logits = self.dgcnn_1(logits, center) #  B G N
+        dvae_label = logits.argmax(-1).long() # B G 
+        return dvae_label
