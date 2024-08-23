@@ -1,7 +1,7 @@
 import inspect
 import warnings
 from functools import partial
-from utils_dVAE import config
+from utils.dVAE import config
 
 class Registry:
     """A registry to map strings to classes.

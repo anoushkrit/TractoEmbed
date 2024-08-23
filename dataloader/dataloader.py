@@ -37,11 +37,11 @@ class HCP_Data(data.Dataset):
             # Load the data from the file
             data_dict = pickle.load(file)
             
-        self.features = data_dict['feat'][:100]
-        self.labels = data_dict['label'][:100]
+        self.features = data_dict['feat']
+        self.labels = data_dict['label']
         self.label_names = data_dict['label_name']
-        self.subject_ids = data_dict['subject_id'][:100]
-        self.ras_feat = data_dict['cnn_embed'].numpy()[:100]
+        self.subject_ids = data_dict['subject_id']
+        self.ras_feat = data_dict['cnn_embed'].numpy()
         
         # bicubic interpolation
         self.labels, self.subject_ids, self.features,self.ras_feat = bicubic_interpolate(self.labels, self.subject_ids, self.features,self.ras_feat)
