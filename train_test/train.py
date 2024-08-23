@@ -120,15 +120,12 @@ def load_batch_data():
 
 def load_model(args, num_classes, device, test=False):
     DL_model = MultiEmbed(args,k=args.k, num_classes=num_classes, feature_transform=True, first_feature_transform=False)
-        
     if test:
         weight = torch.load(args.weight_path)  
-        # print(args.weight_path)
-        
         DL_model.load_state_dict(weight)
+        
     DL_model.cuda()
     # DL_model.to(device)
-
     return DL_model
 
 
@@ -187,22 +184,18 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
     label = label.to(pred.device)
     focal_loss = FocalLoss().cuda()
+
+    #Loss
     loss = focal_loss(pred, label)
     # loss=F.nll_loss(pred, label)
 
     if state == 'train':
-        # print("Shapes of pred and labels", len(pred), len(label))
         loss.backward()
         optimizer.step()
         if args.scheduler == 'wucd':
             scheduler.step(epoch-1 + idx_data/num_batch)
-    
-    
-       # (B*N_point,Cls)->(B*N_point,) for seg, (B,Cls)-> (B) for cls         
-            
-    # if state != 'test_realdata':
+
     total_loss += loss.item()
-    # for calculating weighted and macro metrics
     label = label.cpu().detach().numpy()
     labels_lst.extend(label)
     pred_idx = pred_idx.cpu().detach().numpy()
@@ -212,10 +205,12 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     
     
 def train_val_DL_net(net):
-    """train and validation of the network"""
+    '''train and validation of the network'''
+
     time_start = time.time()
     train_num_batch = train_data_size / args.train_batch_size
     val_num_batch = val_data_size / args.val_batch_size
+    
     # save training and validating process data
     train_loss_lst, val_loss_lst, train_acc_lst, val_acc_lst, \
     train_precision_lst, val_precision_lst, train_recall_lst, val_recall_lst, \
@@ -279,6 +274,7 @@ def train_val_DL_net(net):
             torch.save(net.state_dict(), '{}/epoch_{}_model.pth'.format(args.out_path, epoch))
             print('Save {}/epoch_{}_model.pth'.format(args.out_path, epoch))  
         
+
         # validation metric calculation
         val_end_time = time.time()
         val_time = round(val_end_time-val_start_time, 2)
@@ -286,10 +282,12 @@ def train_val_DL_net(net):
             _, tract_mac_val_f1, tract_labels_lst, tract_pred_lst = \
             meters(epoch, val_num_batch, total_val_loss, val_labels_lst, val_predicted_lst, 
                    val_loss_lst, val_acc_lst, val_precision_lst, val_recall_lst, val_f1_lst, val_time, 'val')
+        
         # swap and save the best metric
         if org_mac_val_f1 > org_best_f1_mac:
             org_best_f1_mac, org_best_f1_epoch, org_best_f1_wts, org_best_f1_val_labels_lst, org_best_f1_val_pred_lst = \
                 best_swap(org_mac_val_f1, epoch, net, val_labels_lst, val_predicted_lst)
+            
         if tract_mac_val_f1 > tract_best_f1_mac:
             tract_best_f1_mac, tract_best_f1_epoch, tract_best_f1_wts, tract_best_f1_val_labels_lst, tract_best_f1_val_pred_lst = \
                 best_swap(tract_mac_val_f1, epoch, net, tract_labels_lst, tract_pred_lst)
@@ -297,11 +295,6 @@ def train_val_DL_net(net):
     # save best weights
     save_best_weights(net, org_best_f1_wts, args.out_path, 'org_f1', org_best_f1_epoch, org_best_f1_mac, logger)
     save_best_weights(net, tract_best_f1_wts, args.out_path, 'tract_f1', tract_best_f1_epoch, tract_best_f1_mac, logger)
-        
-    # plot process curves
-    # process_curves(args.epoch, train_loss_lst, val_loss_lst, train_acc_lst, val_acc_lst,
-    #                train_precision_lst, val_precision_lst, train_recall_lst, val_recall_lst,
-    #                 train_f1_lst, val_f1_lst, -1, -1, org_best_f1_mac, org_best_f1_epoch, args.out_path)
 
       
     # remove checkpoints
@@ -318,9 +311,11 @@ def train_val_DL_net(net):
 
 def meters(epoch, num_batch, total_loss, labels_lst, predicted_lst, 
            org_loss_lst, org_acc_lst, org_precision_lst, org_recall_lst, org_f1_lst, run_time, state):
+    
     # train accuracy loss
     avg_loss = total_loss / float(num_batch)
     org_loss_lst.append(avg_loss)
+
     # train macro p, r, f1
     # original labels 
     org_acc, org_mac_precision, org_mac_recall, org_mac_f1 = \
@@ -329,6 +324,7 @@ def meters(epoch, num_batch, total_loss, labels_lst, predicted_lst,
     org_precision_lst.append(org_mac_precision)
     org_recall_lst.append(org_mac_recall)
     org_f1_lst.append(org_mac_f1)
+
     # Tract labels
     tract_labels_lst = cluster2tract_label(labels_lst, ordered_tract_cluster_mapping_dict)
     tract_pred_lst = cluster2tract_label(predicted_lst, ordered_tract_cluster_mapping_dict)
@@ -343,6 +339,7 @@ def meters(epoch, num_batch, total_loss, labels_lst, predicted_lst,
 
 def results_logging(args, logger, eval_state, label_names, org_labels_lst, org_predicted_lst,
                     tract_labels_lst, tract_predicted_lst, ordered_tract_cluster_mapping_dict):
+    
     """log results for original (800 clusters + 800 outliers) labels and tract (42+1other) labels"""
     if args.use_tracts_training:   # if use tracts as training data, then use tracts as testing data
         assert args.use_tracts_testing == True
@@ -351,7 +348,7 @@ def results_logging(args, logger, eval_state, label_names, org_labels_lst, org_p
     if not args.use_tracts_training:
         label_names_str = label_names
         # best metric
-        h5_name = 'unrelatedHCP_{}_results_best{}.h5'.format(eval_state, args.best_metric)
+        h5_name = 'TractoEmbed_{}_results_best{}.h5'.format(eval_state, args.best_metric)
         try:
             logger.info('{} original labels classification report as below'.format(len(label_names_str)))
             classify_report(org_labels_lst, org_predicted_lst, label_names_str, logger, args.out_log_path, args.best_metric, 
@@ -366,7 +363,7 @@ def results_logging(args, logger, eval_state, label_names, org_labels_lst, org_p
             
     if args.use_tracts_testing:
         tract_label_names_str = list(ordered_tract_cluster_mapping_dict.keys())
-        h5_name = 'unrelatedHCP_{}_results_TractLabels_best{}.h5'.format(eval_state, args.best_metric)
+        h5_name = 'TractoEmbed_{}_results_TractLabels_best{}.h5'.format(eval_state, args.best_metric)
         try:
             logger.info('{}+1 tract labels classification report as below'.format(len(tract_label_names_str)-1))
             classify_report(tract_labels_lst, tract_predicted_lst, tract_label_names_str, logger, args.out_log_path, 
@@ -403,24 +400,22 @@ if __name__ == '__main__':
     # GPU check
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print("Using device: ", device)
+
     # Variable Space
     parser = create_parser()
     args = parser.parse_args()
+
     # fix seed
     args.manualSeed = 0 
     print("Random Seed: ", args.manualSeed)
     fix_seed(args.manualSeed)
-    # adaptively change the args
-    # args = adaptive_args(args)
-    # convert str to num
-    # args.rot_ang_lst = str2num(args.rot_ang_lst)
-    # args.scale_ratio_range = str2num(args.scale_ratio_range)
-    # save local+global feature
-    args.save_knn_neighbors = True
+       
     # paths
     train_val_paths()
+
     # Tract cluster mapping
     ordered_tract_cluster_mapping_dict = obtain_TractClusterMapping()  # {'tract name': ['cluster_xxx','cluster_xxx', ... 'cluster_xxx']}
+
     # Record the training process and values
     logger = create_logger(args.out_path)
     logger.info('=' * 55)
@@ -437,8 +432,7 @@ if __name__ == '__main__':
         print(args.train_batch_size)
         # train and eval net
         train_val_DL_net(DL_model)
+
     # save args
     args_path = os.path.join(args.out_path, 'cli_args.txt')
     save_args(args_path, args)
-
-    #%%

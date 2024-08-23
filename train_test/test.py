@@ -10,7 +10,7 @@ import torch.utils.data
 
 from utils.logger import create_logger
 from utils.funcs import cluster2tract_label, unify_path, makepath, fix_seed, obtain_TractClusterMapping
-from utils.cli import create_parser, load_args, adaptive_args
+from utils.cli import create_parser, load_args
 from train_test.train import load_datasets, load_model, results_logging, train_val_test_forward
 
 
@@ -67,10 +67,8 @@ def test_paths():
     args.out_path_base = unify_path(args.out_path_base)
     args.out_path = os.path.join(args.out_path_base)
     # test
-    if args.aug_times >0:
-        out_log_path_base = os.path.join(args.out_path, 'log_AugTimes{}'.format(args.aug_times))
-    else:
-        out_log_path_base = os.path.join(args.out_path, 'log_NoAug')
+    
+    out_log_path_base = os.path.join(args.out_path, 'log_NoAug')
     args.out_log_path = os.path.join(out_log_path_base)
     makepath(args.out_log_path)
 
@@ -87,8 +85,6 @@ if __name__ == '__main__':
     args = load_args(args_path, args)
     # fix seed
     fix_seed(args.manualSeed)
-    # adaptively change the args
-    args = adaptive_args(args)
     # paths
     test_paths()
     # Tract cluster mapping

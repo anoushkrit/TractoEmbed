@@ -11,19 +11,12 @@ def create_parser():
     parser.add_argument('--input_path', type=str, default='./TrainData/outliers_data/DEBUG_kp0.1/h5_np15/',
                         help='Input graph data and labels')
     parser.add_argument('--out_path_base', type=str, default='./ModelWeights', help='Save trained models')
-    # Data augmentation parameters
-    # parser.add_argument('--rot_ang_lst', type=str, default="0 0 0", help='"45 15 15" rotate 45 degrees in LR(x) axis, 15 degrees in AP(y) axis, 15 degrees in SI(z) axis')
-    # parser.add_argument('--scale_ratio_range', type=str, default="0 0", help='random scale between [1+scale_ratio_range[0], 1+scale_ratio_range[1]]; -0.35 0.05 means scale between 0.65 and 1.05')
-    # parser.add_argument('--trans_dis', type=float, default=0.0, help='random translation between [-trans_dis, +trans_dis]')
-    # parser.add_argument('--aug_times', type=int, default=10, help='How many augmented data we will get for each data.')
-    # Local-global representations
+    # Hyperlocal representations
     parser.add_argument('--k', type=int, default=20, help='Local streamlines (k_local) the number of neighbor streamlines (in streamline level)')
     parser.add_argument('--k_ds_rate', type=float, default=0.1, help='1 means no downsample. downsample the tractography when calculating pairwise distance matrix for local streamlines.')
-    # parser.add_argument('--k_global', type=int, default=500, help='Global streamlines (k_global). The number of streamlines (in streamline level) for random sampling')
     parser.add_argument('--k_point_level', type=int, default=5, help='The number of neighbor points (in point level) on one streamline')
     # Training parameters
     parser.add_argument('--save_step', type=int, default=1, help='The interval of saving weights')
-    # parser.add_argument('--save_step', type=int, default=5, help='The interval of saving weights') #TODO
     parser.add_argument('--num_workers', type=int, help='number of data loading workers', default=4)
     parser.add_argument('--emb_dims', type=int, default=1024, metavar='N',help='Dimension of embeddings')
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
@@ -44,7 +37,6 @@ def create_parser():
     parser.add_argument('--epoch', type=int, default=10, help='the number of epochs')
     parser.add_argument('--sample_pts', type=int, default=150, help='the number of epochs')
     parser.add_argument('--best_metric', type=str, default='f1', help='evaluation metric')
-    # parser.add_argument('--model_name', type=str, default='dgcnn', help='The name of the point cloud model')
     parser.add_argument('--loss', type=str, default='focal', help='loss name')
     parser.add_argument('--num_fiber_per_brain', type=int, default=1000, help='The number of fibers each brain')
     parser.add_argument('--num_point_per_fiber', type=int, default=15, help='The number of points each fiber')
@@ -56,7 +48,6 @@ def create_parser():
     parser.add_argument('--save_args_only', default=False, action='store_true', help='Save args only, not perform training')
     parser.add_argument('--cal_equiv_dist', default=False, action='store_true', help='Calculate equivalent distance for pairwise distance matrix')
     parser.add_argument('--recenter', default=False, action='store_true', help='Recenter the data use the center of mass')
-    # parser.add_argument('--include_org_data', default=False, action='store_true', help='Include original data when augmenting data')
     parser.add_argument('--num_features', type=int, default=3, help='Number of input features')
     parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
     

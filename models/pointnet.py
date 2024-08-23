@@ -1,9 +1,6 @@
 """
 Borrow from https://github.com/fxia22/pointnet.pytorch
 
-Modified by 
-@Author: 
-@Contact: 
 """
 from __future__ import print_function
 import torch
@@ -99,32 +96,31 @@ class PointNetfeat(nn.Module):
 
         self.conv1 = torch.nn.Conv1d(self.num_features, 64, 1)
         self.bn1 = nn.BatchNorm1d(64)
-
         self.conv2 = torch.nn.Conv1d(64,128, 1)
         self.conv3 = torch.nn.Conv1d(128, 256, 1)
         self.conv4 = torch.nn.Conv1d(256, 1024, 1)
         self.bn2 = nn.BatchNorm1d(128) # changed from 128 
         self.bn3 = nn.BatchNorm1d(256)
         self.bn4 = nn.BatchNorm1d(1024)
+
         self.global_feat = global_feat
-        
         self.first_feature_transform = first_feature_transform
         self.feature_transform = feature_transform
         self.k = k
-        # self.k_global = k_global
+
         if self.first_feature_transform:
             self.stn = STN3d()
+
         if self.feature_transform:
             self.fstn = STNkd(k=64)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    def forward(self, x ):
-        # if not x.is_cuda: 
-        #     x.cuda()
-
+    def forward(self, x):
+        if not x.is_cuda: 
+            x.cuda()
         n_pts = x.size()[2]
-        print(x.shape)
+
         if self.first_feature_transform:
             trans = self.stn(x) 
             x = x.transpose(2, 1)
@@ -133,8 +129,7 @@ class PointNetfeat(nn.Module):
         else:
             trans = None
         
-        # x = torch.cat((x,info_point_set),dim=2)   #  (num_fiber, 3, num_points)-> (num_fiber, 3, num_points+1024)
-        x = F.relu(self.bn1(self.conv1(x)))      # (num_fiber, 3*2, num_points, fiber_k) -> (num_fiber, 64, num_points, fiber_k)
+        x = F.relu(self.bn1(self.conv1(x)))     
             
         if self.feature_transform:
             trans_feat = self.fstn(x)
@@ -145,24 +140,14 @@ class PointNetfeat(nn.Module):
             trans_feat = None
 
         pointfeat = x
-        # print("Shape of x: after local global features [4]",x.shape)
         x = F.relu(self.bn2(self.conv2(x)))
-        # print("x shape before last conv [5]",x.shape)
-
-        x = self.bn3(self.conv3(x)) # (256, 1024, 15)
-        x = self.bn4(self.conv4(x)) # (256, 1024, 15)
-        # print("x shape before max",x.shape)
-
+        x = F.relu(self.bn3(self.conv3(x))) 
+        x = self.bn4(self.conv4(x))
         x = torch.max(x, 2, keepdim=True)[0]
-        # print("x shape after max",x.shape)
         x = x.view(-1,1024)
 
-        # here 1024 is linked to the input layer dimensions of the MLP layers later
         if self.global_feat:
-            # print("x shape after view",x.shape)
-
             return x, trans, trans_feat
         else:
             x = x.view(-1, 1024, 1).repeat(1, 1, n_pts)
-            # print("x shape after view",x.shape)
             return torch.cat([x, pointfeat], 1).cuda(), trans, trans_feat
