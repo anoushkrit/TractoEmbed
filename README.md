@@ -68,8 +68,8 @@ The directory structure for the dataset is as follows:
 
 To train the patch encoder(dVAE), simply run:
 ```
-bash bash_scripts/train.sh <GPU_IDS>\
-        --config cfgs/dvae.yaml\
+bash models/dVAE/train.sh <GPU_IDS>\
+        --config models/dVAE/cfgs/dvae.yaml\
         --exp_name <name>
 ```
 Replace <GPU_IDS> with the desired GPU IDs and <name> with the experiment name.
