@@ -37,14 +37,6 @@ pip install -r requirements.txt
 
 _NOTE:_ PyTorch >= 1.7 and GCC >= 4.9 are required.
 
-```
-# Chamfer Distance
-bash install.sh
-# PointNet++
-pip install "git+git://github.com/erikwijmans/Pointnet2_PyTorch.git#egg=pointnet2_ops&subdirectory=pointnet2_ops_lib"
-# GPU kNN
-pip install --upgrade https://github.com/unlimblue/KNN_CUDA/releases/download/0.2/KNN_CUDA-0.2-py3-none-any.whl
-```
 
 ## Dataset
 
