@@ -5,6 +5,8 @@ TractoEmbed: Modular Multi-level embeddings for Tract Segmentation
 Keywords: **Tract Segmentation** · **PointCloud** · **3D Computer Vision** ·
 **Tractography** · **Diffusion MRI**
 
+Overview of TractoEmbed, and how it fuses multiple learnt embeddings to give a tract segmentation output. 
+![multi-embedding-model-overview drawio](https://github.com/user-attachments/assets/eb81eee6-60b0-402f-b65d-ca48eb03f773)
 ![multi-embedding-model-p2 drawio](https://github.com/user-attachments/assets/666cd77b-857d-4594-ad88-34a956113291)
 
 White matter tract segmentation is a crucial task for studying brain structural connectivity and neurosurgical planning. However, segmentation remains challenging due to issues like class imbalance between major and minor tracts, structural similarity, subject variability, and symmetric streamlines between hemispheres etc. To address these challenges
