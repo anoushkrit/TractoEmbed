@@ -111,7 +111,14 @@ Adjust the arguments in the train_multiembed.sh file as necessary.
 If you find this work useful, please cite
 
 ```bibtex
-
+@inproceedings{goel2024tractoembed,
+  title={TractoEmbed: Modular Multi-level Embedding framework for white matter tract segmentation},
+  author={Goel, Anoushkrit and Singh, Bipanjit and Joshi, Ankita and Jha, Ranjeet Ranjan and Ahuja, Chirag and Nigam, Aditya and Bhavsar, Arnav},
+  booktitle={International Conference on Pattern Recognition},
+  pages={240--255},
+  year={2024},
+  organization={Springer}
+}
 ```
 
 
