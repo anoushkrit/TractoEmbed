@@ -42,7 +42,7 @@ def load_file(file_name, num_points=15):
     fiber_array.convert_from_polydata(pd_tractography, points_per_fiber=num_points)
     feat = np.dstack((fiber_array.fiber_array_r, fiber_array.fiber_array_a, fiber_array.fiber_array_s))
 
-    return feat
+    return streamlines, feat
 
 def test_realdata_DL_net(net):
     """test the network"""
@@ -72,6 +72,17 @@ def center_tractography(input_path, feat_RAS, out_path=None, logger=None, tracto
         logger.info('Saved recentered tractography to {}'.format(recenter_path))
     return c_feat_RAS
 
+def group_streamlines_by_tract(streamlines, predicted_lst):
+    """
+    Groups streamlines by tract labels.
+    """
+    tract_dict = {}
+    for streamline, label in zip(streamlines, predicted_lst):
+        if label not in tract_dict:
+            tract_dict[label] = []
+        tract_dict[label].append(streamline)
+    return tract_dict
+
 if __name__ == '__main__':
     # GPU check
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -94,13 +105,20 @@ if __name__ == '__main__':
     logger.info(args)
     logger.info('=' * 55)
     # load data
-    feat_RAS=load_file(args.tractography_path)
-    c_feat_RAS = center_tractography(args.HCP_center, feat_RAS, out_path=args.out_path, logger=logger, tractography_name=args.tractography_name, save_data=args.save_data)
+    raw_streamlines,feat_RAS=load_file(args.tractography_path)
+    centered_feat_RAS = center_tractography(args.HCP_center, feat_RAS, out_path=args.out_path, logger=logger, tractography_name=args.tractography_name, save_data=args.save_data)
     # Real data processing
-    test_realdata = RealData(c_feat_RAS,args,logger=logger) 
+    test_realdata = RealData(centered_feat_RAS,args,logger=logger) 
     test_loader = torch.utils.data.DataLoader(test_realdata, batch_size=args.test_realdata_batch_size, shuffle=False)
     test_realdata_size = len(test_realdata)
     args.weight_path = os.path.join(args.out_path, 'best_org_f1_model.pth')
     DL_model = load_model(args, num_classes=args.num_classes, device=device, test=True)  
     predicted_lst = test_realdata_DL_net(DL_model)
+    tract_predicted_lst = cluster2tract_label(predicted_lst, ordered_tract_cluster_mapping_dict)
 
+    tract_dict = group_streamlines_by_tract(feat_RAS, tract_predicted_lst)
+    for tract_label, streamlines in tract_dict.items():
+        streamlines=np.array(streamlines)
+        file_path=f"{args.saved_trk_path}/{tract_label}.vtk"
+        vtk_data = array2vtkPolyData(streamlines)
+        wma.io.write_polydata(vtk_data, file_path)
