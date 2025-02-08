@@ -99,8 +99,6 @@ if __name__ == '__main__':
     # Real data processing
     test_realdata = RealData(c_feat_RAS,args,logger=logger) 
     test_loader = torch.utils.data.DataLoader(test_realdata, batch_size=args.test_realdata_batch_size, shuffle=False)
-    test_loader = torch.utils.data.DataLoader(test_realdata, batch_size=args.test_realdata_batch_size, shuffle=False)
-    test_loader = torch.utils.data.DataLoader(test_realdata, batch_size=args.test_realdata_batch_size, shuffle=False)
     test_realdata_size = len(test_realdata)
     args.weight_path = os.path.join(args.out_path, 'best_org_f1_model.pth')
     DL_model = load_model(args, num_classes=args.num_classes, device=device, test=True)  
