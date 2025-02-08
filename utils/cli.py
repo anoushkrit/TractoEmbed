@@ -11,6 +11,8 @@ def create_parser():
     parser.add_argument('--input_path', type=str, default='./TrainData/outliers_data/DEBUG_kp0.1/h5_np15/',
                         help='Input graph data and labels')
     parser.add_argument('--out_path_base', type=str, default='./ModelWeights', help='Save trained models')
+    parser.add_argument('--tractography_path', type=str, default='./TrainData/outliers_data/DEBUG_kp0.1/h5_np15/', help='Testing files path')
+    parser.add_argument('--HCP_center', type=str, default='./TrainData/outliers_data/DEBUG_kp0.1/h5_np15/', help='HCP center files path')
     # Hyperlocal representations
     parser.add_argument('--k', type=int, default=20, help='Local streamlines (k_local) the number of neighbor streamlines (in streamline level)')
     parser.add_argument('--k_ds_rate', type=float, default=0.1, help='1 means no downsample. downsample the tractography when calculating pairwise distance matrix for local streamlines.')
@@ -50,6 +52,7 @@ def create_parser():
     parser.add_argument('--recenter', default=False, action='store_true', help='Recenter the data use the center of mass')
     parser.add_argument('--num_features', type=int, default=3, help='Number of input features')
     parser.add_argument('--batch_size', type=int, default=1024, help='Batch size')
+    parser.add_argument('--test_realdata_batch_size', type=int, default=1024, help='Testing Batch size')
     
     return parser
 

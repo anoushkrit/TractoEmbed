@@ -154,7 +154,8 @@ def load_settings(DL_model):
 def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, predicted_lst, args, device, num_classes, epoch=-1, num_batch=-1):
     points, label, cluster_data_set, new_subidx,feat_ras_cnn = data      
     num_fiber = points.shape[0]
-    label = label[:,0]      # [B,1] to [B]   
+    if state!='test_realdata':
+        label = label[:,0]      # [B,1] to [B]   
     # Streamline data
     points = points.transpose(2, 1)  # streamlines [B, 3, N_point]
     #Cluster data
@@ -181,8 +182,9 @@ def train_val_test_forward(idx_data, data, net, state, total_loss, labels_lst, p
     
     pred = pred.view(-1, num_classes)       # seg (B,N_point,Cls) -> (B*N_point,Cls); cls (B,Cls) -> (B,Cls)
     _, pred_idx = torch.max(pred, dim=1)
-    label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
-    label = label.to(pred.device)
+    if state!='test_realdata':
+        label = label.view(-1,1)[:,0]      # seg (B*N_point); cls (B)
+        label = label.to(pred.device)
     focal_loss = FocalLoss().cuda()
 
     #Loss

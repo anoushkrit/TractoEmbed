@@ -188,6 +188,86 @@ class HCP_Data(data.Dataset):
         fibre_feat_ras=self.brain_feat_ras.reshape(-1, 256)
         return fiber_feat, fiber_label,local_feat, new_subidx,fibre_feat_ras
     
+class RealData(data.Dataset):
+    def __init__(self, feat, args, logger=None):
+        self.logger = logger
+        self.num_point = args.num_point_per_fiber
+        self.use_tracts_training = args.use_tracts_training
+        self.k = args.k
+        self.sample_points=args.sample_pts
+        self.k_ds_rate=args.k_ds_rate  
+        self.cal_equiv_dist = args.cal_equiv_dist
+        self.use_endpoints_dist = False
+        self.k = args.k
+        self.k_global = args.k_global
+
+        self.features = feat.astype(np.float32) 
+         # self.labels=np.zeros(feat.shape[0])
+        # self.ras_feat=np.zeros(feat.shape[0],256)
+
+        # bicubic interpolation
+        self.features = bicubic_interpolate_single_arg(self.features)
+    
+        # calculate hyperlocal features representations 
+        # [n_subject*n_fiber, n_point, n_feat], [n_subject*n_fiber, n_point or 1], [n_subject*n_fiber, n_point, n_feat, k], [n_subject, n_point, n_feat, k_global], [n_subject*n_fiber, 1], [n_subject*n_fiber, 256]
+        self.hyperlocal_feat=self.calhyperloc()
+            
+    def __getitem__(self, index):
+        streamline = self.features[index]
+        # label = 0
+        # new_subidx = 0
+        hyperlocal_streamlines=self.hyperlocal_feat[index]
+        hyperlocal_pc=hyperlocal_streamlines.reshape(-1,3)
+        hyperlocal_pc=np.concatenate((streamline,hyperlocal_pc),axis=0)
+        feat_ras=self.ras_feat[index]
+        if(hyperlocal_pc.shape[0]>=self.sample_points):
+            selct_idx = np.random.choice(hyperlocal_pc.shape[0], self.sample_points, replace=False)
+            cluster_data = hyperlocal_pc[selct_idx]
+        else:
+            select_idx = np.random.choice(hyperlocal_pc.shape[0], self.sample_points, replace=True)
+            cluster_data = hyperlocal_pc[select_idx]
+        if streamline.dtype == 'float32':
+            streamline = torch.from_numpy(streamline)
+            cluster_data = torch.from_numpy(cluster_data)
+            feat_ras = torch.from_numpy(feat_ras)
+        else:
+            streamline = torch.from_numpy(streamline.astype(np.float32))
+            cluster_data = torch.from_numpy(cluster_data.astype(np.float32))
+            feat_ras = torch.from_numpy(feat_ras.astype(np.float32))
+
+        if label.dtype == 'int64':
+            label = torch.from_numpy(label)
+            new_subidx = torch.from_numpy(new_subidx)
+        else:
+            label = torch.from_numpy(label.astype(np.int64))
+            new_subidx = torch.from_numpy(new_subidx.astype(np.int64))
+
+        return streamline, label, cluster_data, new_subidx,feat_ras
+
+    def __len__(self):
+        return self.feat.shape[0]
+    
+    def _cal_hyperlocal_feat(self):
+        if self.k>0:
+            local_feat = np.zeros((*self.features.shape, self.k), dtype=np.float32) # [n_fiber, n_point, n_feat, k]
+        else: # will be discarded later in the training
+            local_feat = np.zeros((*self.features.shape, 1), dtype=np.float32) # [n_subject, n_fiber, n_point, n_feat, 1]
+
+        num_feat_per_point = self.features.shape[-1]
+        cur_feat = self.features # [n_fiber,n_point,n_feat]
+        cur_feat = np.transpose(cur_feat,(0,2,1))  #  [n_fiber, n_point, n_feat]->[n_fiber,n_feat,n_point]
+        if self.k>0:
+            # local feat
+            cur_hyperlocal_feat = cal_local_feat(cur_feat, self.k_ds_rate, self.k, self.use_endpoints_dist, self.cal_equiv_dist)      # [n_fiber*k, n_feat, n_point]
+            cur_hyperlocal_feat = cur_hyperlocal_feat.reshape(self.num_fiber, self.k, num_feat_per_point, self.num_point)  # [n_fiber, k, n_feat, n_point]
+            cur_hyperlocal_feat = np.transpose(cur_hyperlocal_feat,(0,3,2,1))  # [n_fiber, n_point, n_feat, k]
+
+        if self.k>0:
+            local_feat= cur_hyperlocal_feat
+
+        return local_feat
+    
+    
 def cal_hyperlocal(cur_feat,local_feat,radius=6):#[n_fiber,n_feat,n_point]   [n_fiber, k, n_feat, n_point]
     cur_feat = np.transpose(cur_feat,(0,2,1))
     local_feat = np.transpose(local_feat,(0,1,3,2))
@@ -329,9 +409,26 @@ def bicubic_interpolate_single_streamline(label, sub_id, feature,ras_feature, nu
 
     return label, sub_id, interpolated_streamline,ras_feature
 
+def bicubic_interpolate_single_streamline_single_arg(feature, num_point_per_fiber=40):
+    original_x = np.arange(feature.shape[0])
+    new_x = np.linspace(0, original_x[-1], num_point_per_fiber)
+    num_dims = feature.shape[1]
+    interpolated_streamline = np.zeros((num_point_per_fiber, num_dims))
+
+    for dim in range(num_dims):
+        cs = CubicSpline(original_x, feature[:, dim])
+        interpolated_streamline[:, dim] = cs(new_x)
+
+    return interpolated_streamline
+
 def bicubic_interpolate(labels, subject_ids, features,ras_feature):
     arg_streamlines = [(labels[i],subject_ids[i] ,features[i],ras_feature[i]) for i in range(len(features))]
     with multiprocessing.Pool() as pool:
         result_list = pool.starmap(bicubic_interpolate_single_streamline, arg_streamlines)
     labels, subject_ids, features,ras_feature = zip(*result_list)
     return np.array(labels), np.array(subject_ids), np.array(features),np.array(ras_feature)
+
+def bicubic_interpolate_single_arg(features):
+    with multiprocessing.Pool() as pool:
+        new_features = pool.starmap(bicubic_interpolate_single_streamline, features)
+    return np.array(new_features)
