@@ -1,0 +1,3 @@
+[submodule "segment/TractoGPT"]
+	path = segment/TractoGPT
+	url = https://github.com/anoushkrit/TractoGPT
